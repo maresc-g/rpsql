@@ -70,6 +70,6 @@ pub fn parse() -> Config {
             user : matches.value_of("user").unwrap_or_else(|| &username).to_string(),
         });
     }
-    println!("{:?}", result);
+
     result
 }

@@ -10,3 +10,4 @@ edition = "2018"
 postgres = "0.17.2"
 postgres-types = "0.1"
 clap = { git = "https://github.com/clap-rs/clap/" }
+dirs = "2.0"
