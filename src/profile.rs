@@ -33,12 +33,7 @@ pub fn choose() -> io::Result<()> {
         "0" => {
             println!("Creating new profile");
             let (profile_name, connect_options) = _create_new_profile();
-            let mut filename = path::PathBuf::new();
-            filename.push(dir);
-            filename.push(format!("{}.json", profile_name));
-            filename.set_extension("json");
-            let mut file = fs::File::create(filename)?;
-            file.write_all(connect_options.to_json().as_bytes())?;
+            _save_profile(&dir, &profile_name, &connect_options)?;
         }
         _ => {
             println!("Using profile {}", choice);
@@ -76,6 +71,16 @@ fn _read_attribute(prompt: &str, default: Option<String>) -> String {
         }
     }
     buffer
+}
+
+fn _save_profile(dir: &path::PathBuf, profile_name: &String, connect_options: &ConnectionOptions) -> io::Result<()> {
+    let mut filename = path::PathBuf::new();
+    filename.push(dir);
+    filename.push(format!("{}.json", profile_name));
+    filename.set_extension("json");
+    let mut file = fs::File::create(filename)?;
+    file.write_all(connect_options.to_json().as_bytes())?;
+    Ok(())
 }
 
 fn _get_config_dir() -> path::PathBuf {
