@@ -1,6 +1,6 @@
 use clap::{Arg, ArgGroup, App};
 use std::env;
-use serde_json::json;
+use serde::{Serialize, Deserialize};
 
 #[derive(Debug)]
 pub enum Config {
@@ -9,7 +9,7 @@ pub enum Config {
     ConnectionOptions(ConnectionOptions),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ConnectionOptions {
     pub dbname: String,
     pub host: String,
@@ -26,16 +26,9 @@ impl ConnectionOptions {
             user : String::new(),
         }
     }
-    fn to_connection_string(&self) -> String {
+
+    pub fn to_connection_string(&self) -> String {
         format!("host={} port={} user={} dbname={}", self.host, self.port, self.user, self.dbname)
-    }
-    pub fn to_json(&self) -> String {
-        json!({
-            "host": self.host,
-            "port": self.port,
-            "user": self.user,
-            "dbname": self.dbname,
-        }).to_string()
     }
 }
 

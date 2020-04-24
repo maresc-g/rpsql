@@ -8,8 +8,13 @@ fn main() {
 
     match config {
         Config::None => {
-            if let Err(_) = profile::choose() {
+            let res = profile::choose();
+            if let Err(e) = res {
+                eprintln!("{}", e);
                 std::process::exit(1);
+            }
+            else {
+                println!("{:?}", res.unwrap());
             }
         }
         Config::Profile(_) => {

@@ -1,4 +1,4 @@
-use std::fs;
+use std::fs::{self, File, ReadDir};
 use std::io::{self, Write};
 use std::path;
 use dirs;
@@ -7,7 +7,7 @@ use crate::parse_args::ConnectionOptions;
 
 const PROFILES_DIR: &str = "rpsql/profiles";
 
-pub fn choose() -> io::Result<()> {
+pub fn choose() -> Result<ConnectionOptions, io::Error> {
     let dir = _get_config_dir();
     let entries = fs::read_dir(_get_config_dir());
     let mut profiles: Vec<path::PathBuf> = Vec::new();
@@ -37,9 +37,27 @@ pub fn choose() -> io::Result<()> {
         }
         _ => {
             println!("Using profile {}", choice);
+            let mut profile_name = path::PathBuf::new();
+            if let Ok(i) = choice.parse::<usize>() {
+                if i < 1 || i > profiles.len() + 1 {
+                    return Err(io::Error::new(io::ErrorKind::NotFound, "Invalid choice"));
+                }
+                profile_name = profiles[i - 1].clone();
+            }
+            else {
+                profile_name.push(dir);
+                profile_name.push(format!("{}.json", choice));
+                if let Some(_) = profiles.iter().find(|&p| p == &profile_name) {
+                }
+                else {
+                    println!("{:?}", profiles);
+                    return Err(io::Error::new(io::ErrorKind::NotFound, "Invalid choice"));
+                }
+            }
+            return _load_profile(&profile_name);
         }
     }
-    Ok(())
+    Err(io::Error::new(io::ErrorKind::NotFound, "No choices"))
 }
 
 fn _create_new_profile() -> (String, ConnectionOptions) {
@@ -78,9 +96,14 @@ fn _save_profile(dir: &path::PathBuf, profile_name: &String, connect_options: &C
     filename.push(dir);
     filename.push(format!("{}.json", profile_name));
     filename.set_extension("json");
-    let mut file = fs::File::create(filename)?;
-    file.write_all(connect_options.to_json().as_bytes())?;
+    let mut file = File::create(filename)?;
+    file.write_all(serde_json::to_string(&connect_options).unwrap().as_bytes())?;
     Ok(())
+}
+
+fn _load_profile(filename: &path::PathBuf) -> Result<ConnectionOptions, io::Error> {
+    let contents = fs::read_to_string(filename)?;
+    Ok(serde_json::from_str(&contents).unwrap())
 }
 
 fn _get_config_dir() -> path::PathBuf {
@@ -89,7 +112,7 @@ fn _get_config_dir() -> path::PathBuf {
     p
 }
 
-fn _get_profile_files(entries: fs::ReadDir) -> Result<Vec<path::PathBuf>, io::Error> {
+fn _get_profile_files(entries: ReadDir) -> Result<Vec<path::PathBuf>, io::Error> {
     let mut profiles: Vec<path::PathBuf> = Vec::new();
     for entry in entries {
         let e = entry?;
