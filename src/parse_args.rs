@@ -1,5 +1,6 @@
 use clap::{Arg, ArgGroup, App};
 use std::env;
+use serde_json::json;
 
 #[derive(Debug)]
 pub enum Config {
@@ -27,6 +28,14 @@ impl ConnectionOptions {
     }
     fn to_connection_string(&self) -> String {
         format!("host={} port={} user={} dbname={}", self.host, self.port, self.user, self.dbname)
+    }
+    pub fn to_json(&self) -> String {
+        json!({
+            "host": self.host,
+            "port": self.port,
+            "user": self.user,
+            "dbname": self.dbname,
+        }).to_string()
     }
 }
 

@@ -33,6 +33,12 @@ pub fn choose() -> io::Result<()> {
         "0" => {
             println!("Creating new profile");
             let (profile_name, connect_options) = _create_new_profile();
+            let mut filename = path::PathBuf::new();
+            filename.push(dir);
+            filename.push(format!("{}.json", profile_name));
+            filename.set_extension("json");
+            let mut file = fs::File::create(filename)?;
+            file.write_all(connect_options.to_json().as_bytes())?;
         }
         _ => {
             println!("Using profile {}", choice);
@@ -44,7 +50,7 @@ pub fn choose() -> io::Result<()> {
 fn _create_new_profile() -> (String, ConnectionOptions) {
     let mut c = ConnectionOptions::new();
     let username = env::var("USER").unwrap_or_else(|_| String::from("postgres"));
-    let profile_name = _read_attribute("Profile name", None);
+    let profile_name = _read_attribute("Profile name (.json is added automatically)", None);
     c.host = _read_attribute("Host", Some("localhost".to_string()));
     c.port = _read_attribute("Port", Some("5432".to_string()));
     c.dbname = _read_attribute("Database name", Some(username.clone()));
