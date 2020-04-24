@@ -1,2 +1,2 @@
 # rpsql
-Alternative to psql written in rust
+Postgresql CLI written in rust
