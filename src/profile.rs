@@ -3,7 +3,7 @@ use std::io::{self, Write};
 use std::path;
 use dirs;
 use std::env;
-use crate::parse_args::ConnectionOptions;
+use crate::connection_options::ConnectionOptions;
 
 const PROFILES_DIR: &str = "rpsql/profiles";
 

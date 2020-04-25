@@ -1,34 +1,29 @@
 mod parse_args;
 mod profile;
+mod connection_options;
 
 use parse_args::Config;
+use connection_options::ConnectionOptions;
+use std::io;
 
 fn main() {
     let config : Config = parse_args::parse();
+    let res: Result<ConnectionOptions, io::Error>;
 
     match config {
         Config::None => {
-            let res = profile::choose();
-            if let Err(e) = res {
-                eprintln!("{}", e);
-                std::process::exit(1);
-            }
-            else {
-                println!("{:?}", res.unwrap());
-            }
+            res = profile::choose();
         }
         Config::Profile(p) => {
-            let res = profile::load(&p);
-            if let Err(e) = res {
-                eprintln!("{}", e);
-                std::process::exit(1);
-            }
-            else {
-                println!("{:?}", res.unwrap());
-            }
+            res = profile::load(&p);
         }
-        Config::ConnectionOptions(_) => {
+        Config::ConnectionOptions(c) => {
+            res = Ok(c);
+        }
+    }
 
-        }
+    if let Err(e) = res {
+        eprintln!("{}", e);
+        std::process::exit(1);
     }
 }
