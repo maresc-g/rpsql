@@ -1,6 +1,7 @@
 mod parse_args;
 mod profile;
 mod connection_options;
+mod sql;
 
 use parse_args::Config;
 use connection_options::ConnectionOptions;
@@ -25,5 +26,10 @@ fn main() {
     if let Err(e) = res {
         eprintln!("{}", e);
         std::process::exit(1);
+    }
+
+    if let Err(e) = sql::handle_connection(&res.unwrap()) {
+        eprintln!("{}", e);
+        std::process::exit(1);        
     }
 }
