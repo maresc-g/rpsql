@@ -93,6 +93,7 @@ fn _create_new_profile() -> (String, ConnectionOptions) {
     c.port = _read_attribute("Port", Some("5432".to_string()));
     c.dbname = _read_attribute("Database name", Some(username.clone()));
     c.user = _read_attribute("User", Some(username.clone()));
+    c.password = _read_attribute("Password", Some(username.clone()));
     (profile_name, c)
 }
 

@@ -6,6 +6,7 @@ pub struct ConnectionOptions {
     pub host: String,
     pub port: String,
     pub user: String,
+    pub password: String,
 }
 
 impl ConnectionOptions {
@@ -15,10 +16,11 @@ impl ConnectionOptions {
             host : String::new(),
             port : String::new(),
             user : String::new(),
+            password: String::new(),
         }
     }
 
     pub fn to_connection_string(&self) -> String {
-        format!("host={} port={} user={} dbname={}", self.host, self.port, self.user, self.dbname)
+        format!("host={} port={} user={} dbname={} password={}", self.host, self.port, self.user, self.dbname, self.password)
     }
 }
