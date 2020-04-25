@@ -17,8 +17,15 @@ fn main() {
                 println!("{:?}", res.unwrap());
             }
         }
-        Config::Profile(_) => {
-
+        Config::Profile(p) => {
+            let res = profile::load(&p);
+            if let Err(e) = res {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            }
+            else {
+                println!("{:?}", res.unwrap());
+            }
         }
         Config::ConnectionOptions(_) => {
 

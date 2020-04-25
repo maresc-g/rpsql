@@ -8,6 +8,30 @@ use crate::parse_args::ConnectionOptions;
 const PROFILES_DIR: &str = "rpsql/profiles";
 
 pub fn choose() -> Result<ConnectionOptions, io::Error> {
+    let (dir, profiles) = _get_dir_and_profiles()?;
+
+    println!("(0) Create new profile");
+    for (i, profile) in profiles.iter().enumerate() {
+        let tmp = profile.with_extension("");
+        println!("({}) {}", i + 1, tmp.file_name().unwrap_or_default().to_str().unwrap());
+    }
+    _get_user_choice(&dir, &profiles)
+}
+
+pub fn load(profile_name: &str) -> Result<ConnectionOptions, io::Error> {
+    let (dir, profiles) = _get_dir_and_profiles()?;
+    let mut profile_file = path::PathBuf::new();
+    profile_file.push(&dir);
+    profile_file.push(format!("{}.json", profile_name));
+    if let Some(p) = profiles.iter().find(|&p| p == &profile_file) {
+        return _load_profile(p);
+    }
+    else {
+        return Err(io::Error::new(io::ErrorKind::NotFound, format!("Error : profile {} not found", profile_name)));
+    }
+}
+
+fn _get_dir_and_profiles() -> Result<(path::PathBuf, Vec<path::PathBuf>), io::Error> {
     let dir = _get_config_dir();
     let entries = fs::read_dir(_get_config_dir());
     let mut profiles: Vec<path::PathBuf> = Vec::new();
@@ -20,44 +44,45 @@ pub fn choose() -> Result<ConnectionOptions, io::Error> {
             _create_dir_if_not_found(err, &dir)?;
         }
     }
-    println!("(0) Create new profile");
-    for (i, profile) in profiles.iter().enumerate() {
-        println!("({}) {}", i + 1, profile.file_name().unwrap_or_default().to_str().unwrap());
-    }
-    let mut buffer = String::new();
-    print!("Choose your profile : ");
-    io::stdout().flush().unwrap();
-    io::stdin().read_line(&mut buffer)?;
-    let choice = buffer.trim();
-    match choice {
-        "0" => {
-            println!("Creating new profile");
-            let (profile_name, connect_options) = _create_new_profile();
-            _save_profile(&dir, &profile_name, &connect_options)?;
-        }
-        _ => {
-            println!("Using profile {}", choice);
-            let mut profile_name = path::PathBuf::new();
-            if let Ok(i) = choice.parse::<usize>() {
-                if i < 1 || i > profiles.len() + 1 {
-                    return Err(io::Error::new(io::ErrorKind::NotFound, "Invalid choice"));
-                }
-                profile_name = profiles[i - 1].clone();
+    Ok((dir, profiles))
+}
+
+fn _get_user_choice(dir: &path::PathBuf, profiles: &Vec<path::PathBuf>) -> Result<ConnectionOptions, io::Error> {
+    loop {
+        let mut buffer = String::new();
+        print!("Choose your profile : ");
+        io::stdout().flush().unwrap();
+        io::stdin().read_line(&mut buffer)?;
+        let choice = buffer.trim();
+        match choice {
+            "0" => {
+                println!("Creating new profile");
+                let (profile_name, connect_options) = _create_new_profile();
+                _save_profile(&dir, &profile_name, &connect_options)?;
+                return Ok(connect_options);
             }
-            else {
-                profile_name.push(dir);
-                profile_name.push(format!("{}.json", choice));
-                if let Some(_) = profiles.iter().find(|&p| p == &profile_name) {
+            _ => {
+                println!("Using profile {}", choice);
+                let mut profile_name = path::PathBuf::new();
+                if let Ok(i) = choice.parse::<usize>() {
+                    if i < 1 || i > profiles.len() + 1 {
+                        eprintln!("Invalid choice");
+                        continue;
+                    }
+                    profile_name = profiles[i - 1].clone();
                 }
                 else {
-                    println!("{:?}", profiles);
-                    return Err(io::Error::new(io::ErrorKind::NotFound, "Invalid choice"));
+                    profile_name.push(&dir);
+                    profile_name.push(format!("{}.json", choice));
+                    if let None = profiles.iter().find(|&p| p == &profile_name) {
+                        eprintln!("Invalid choice");
+                        continue;
+                    }
                 }
+                return _load_profile(&profile_name);
             }
-            return _load_profile(&profile_name);
         }
     }
-    Err(io::Error::new(io::ErrorKind::NotFound, "No choices"))
 }
 
 fn _create_new_profile() -> (String, ConnectionOptions) {
@@ -95,7 +120,6 @@ fn _save_profile(dir: &path::PathBuf, profile_name: &String, connect_options: &C
     let mut filename = path::PathBuf::new();
     filename.push(dir);
     filename.push(format!("{}.json", profile_name));
-    filename.set_extension("json");
     let mut file = File::create(filename)?;
     file.write_all(serde_json::to_string(&connect_options).unwrap().as_bytes())?;
     Ok(())
@@ -127,16 +151,14 @@ fn _create_dir_if_not_found(err: io::Error, dir: &path::PathBuf) -> std::io::Res
     match err.kind() {
         io::ErrorKind::NotFound => {
             if let Err(err) = _create_dir(&dir) {
-                eprintln!("Error while creating profiles directory ({}): {}, exiting", dir.to_str().unwrap(), err);
-                Err(err)
+                Err(io::Error::new(io::ErrorKind::NotFound, format!("Error while creating profiles directory ({}): {}, exiting", dir.to_str().unwrap(), err)))
             }
             else {
                 Ok(())
             }
         }
         _ => {
-            eprintln!("Error while accessing profiles directory ({}): {}, exiting", dir.to_str().unwrap(), err);
-            Err(err)
+            Err(io::Error::new(io::ErrorKind::NotFound, format!("Error while accessing profiles directory ({}): {}, exiting", dir.to_str().unwrap(), err)))
         }
     }
 }
