@@ -1,7 +1,7 @@
 use crate::connection_options::ConnectionOptions;
 use postgres::{Client, NoTls, SimpleQueryMessage, SimpleQueryRow, Statement};
 use postgres_types::Type;
-use std::io::{self, Write};
+use std::io;
 
 #[derive(Debug)]
 struct ResultColumn {
@@ -22,24 +22,7 @@ impl ResultColumn {
 
 const ADDITIONAL_SPACES: usize = 2;
 
-pub fn handle_connection(connection_options: &ConnectionOptions) -> Result<(), String> {
-    let mut client = _try_connect(&connection_options)?;
-
-    let mut again = true;
-    while again {
-        let res = _loop(&mut client);
-        if let Err(e) = res {
-            eprintln!("{}", e);
-        }
-        else {
-            again = res.unwrap();
-        }
-    }
-
-    Ok(())
-}
-
-fn _try_connect(connection_options: &ConnectionOptions) -> Result<Client, String> {
+pub fn try_connect(connection_options: &ConnectionOptions) -> Result<Client, String> {
     let res = Client::connect(connection_options.to_connection_string().as_str(), NoTls);
     if let Err(err) = res {
         return Err(format!("Error while trying to connect to server : {}", err));
@@ -47,15 +30,7 @@ fn _try_connect(connection_options: &ConnectionOptions) -> Result<Client, String
     Ok(res.unwrap())
 }
 
-fn _loop(mut client: &mut Client) -> Result<bool, String> {
-    _display_prompt()?;
-    let query_buffer = _get_query()?;
-    let query = query_buffer.as_str();
-    if query.is_empty() {
-        println!("Exit");
-        return Ok(false);
-    }
-
+pub fn handle_query(mut client: &mut Client, query: &str) -> Result<(), String> {
     let res_prepare = _prepare_query(&mut client, query);
     if let Err(e) = res_prepare {
         return Err(e);
@@ -82,23 +57,7 @@ fn _loop(mut client: &mut Client) -> Result<bool, String> {
         print!("\n");
     }
 
-    Ok(true)
-}
-
-fn _display_prompt() -> Result<(), String> {
-    print!("$> ");
-    if let Err(err) = io::stdout().flush() {
-        return Err(format!("Error printing prompt : {}", err));
-    }
     Ok(())
-}
-
-fn _get_query() -> Result<String, String> {
-    let mut buffer = String::new();
-    if let Err(e) = io::stdin().read_line(&mut buffer) {
-        return Err(format!("Error reading query : {}", e));
-    }
-    Ok(buffer)
 }
 
 fn _prepare_query(client: &mut Client, query: &str) -> Result<Statement, String> {
