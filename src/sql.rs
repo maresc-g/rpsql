@@ -1,7 +1,6 @@
 use crate::connection_options::ConnectionOptions;
 use postgres::{Client, NoTls, SimpleQueryMessage, SimpleQueryRow, Statement};
 use postgres_types::Type;
-use std::io;
 
 #[derive(Debug)]
 struct ResultColumn {
