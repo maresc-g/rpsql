@@ -41,7 +41,7 @@ impl TermPos {
     fn new() -> TermPos {
         let (max_x, max_y) = termion::terminal_size().unwrap();
         TermPos {
-            x: 1,
+            x: PROMPT.len() as u16 + 1,
             y: 1,
             buffer: Vec::new(),
             current_index: 0,
