@@ -7,39 +7,30 @@ mod ui;
 use parse_args::Config;
 use connection_options::ConnectionOptions;
 use std::io::Error;
+use termion::raw::IntoRawMode;
 
 pub fn main_loop(connection_options: &ConnectionOptions) -> Result<(), String> {
     ui::init();
+    let mut client = sql::try_connect(&connection_options)?;
     let mut again = true;
+    let mut tp = ui::TermPos::new();
+    let mut stdout = std::io::stdout().into_raw_mode().unwrap();
     while again {
-        if let Ok(_) = ui::get_input() {
+        if let Some(query) = ui::get_input(&mut tp, &mut stdout) {
+            if !query.trim().is_empty() {
+                let res = sql::handle_query(&mut client, query.as_str());
+                if let Err(e) = res {
+                    ui::display_string_on_new_line(&mut tp, &mut stdout, &e.to_string());
+                }
+                else {
+                    ui::display_vec_on_new_line(&mut tp, &mut stdout, &res.unwrap());
+                }
+            }
         }
         else {
             again = false;
         }
     }
-    // let mut client = sql::try_connect(&connection_options)?;
-    //
-    // let mut again = true;
-    // while again {
-    //     let res = _handle_input();
-    //     if let Err(e) = res {
-    //         eprintln!("{}", e);
-    //         again = false;
-    //     }
-    //     else {
-    //         let query = res.unwrap();
-    //         if query.is_empty() {
-    //             again = false;
-    //         }
-    //         else if !query.trim().is_empty() {
-    //             let res = sql::handle_query(&mut client, query.as_str());
-    //             if let Err(e) = res {
-    //                 eprintln!("{}", e);
-    //             }
-    //         }
-    //     }
-    // }
 
     Ok(())
 }

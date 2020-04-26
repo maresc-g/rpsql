@@ -1,32 +1,10 @@
 use std::io::{Write, stdout, stdin};
 use termion::event::Key;
 use termion::input::TermRead;
-use termion::raw::IntoRawMode;
-
-fn _display_prompt() -> Result<(), String> {
-    print!("$> ");
-    if let Err(err) = stdout().flush() {
-        return Err(format!("Error printing prompt : {}", err));
-    }
-    Ok(())
-}
-
-fn _get_query() -> Result<String, String> {
-    let mut buffer = String::new();
-    if let Err(e) = stdin().read_line(&mut buffer) {
-        return Err(format!("Error reading query : {}", e));
-    }
-    Ok(buffer)
-}
-
-fn _handle_input() -> Result<String, String> {
-    _display_prompt()?;
-    _get_query()
-}
 
 const PROMPT: &'static str = "$> ";
 
-struct TermPos {
+pub struct TermPos {
     x: u16,
     y: u16,
     buffer: Vec<char>,
@@ -38,7 +16,7 @@ struct TermPos {
 }
 
 impl TermPos {
-    fn new() -> TermPos {
+    pub fn new() -> TermPos {
         let (max_x, max_y) = termion::terminal_size().unwrap();
         TermPos {
             x: PROMPT.len() as u16 + 1,
@@ -66,7 +44,6 @@ impl TermPos {
             if self.y == self.max_y {
                 print!("{}\n", termion::cursor::Goto(1, self.y));
             }
-            self.reset();
         }
         else {
             self.buffer.insert(self.current_index, c);
@@ -145,9 +122,38 @@ pub fn init() {
             .unwrap();
 }
 
-pub fn get_input() -> Result<String, ()> {
-    let mut tp = TermPos::new();
-    let mut stdout = stdout().into_raw_mode().unwrap();
+pub fn display_vec_on_new_line(tp: &mut TermPos, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>, v: &Vec<String>) {
+    tp.x = 1;
+    for s in v {
+        write!(stdout,
+               "{}{}\n",
+               termion::cursor::Goto(1, tp.y),
+               s)
+                .unwrap();
+        tp.y += 1;
+        tp.y = std::cmp::min(tp.y, tp.max_y);
+    }
+    stdout.flush().unwrap();
+}
+
+pub fn display_string_on_new_line(tp: &mut TermPos, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>, s: &String) {
+    tp.x = 1;
+    write!(stdout,
+           "{}{}\n",
+           termion::cursor::Goto(1, tp.y),
+           s)
+            .unwrap();
+    tp.y += 1;
+    tp.y = std::cmp::min(tp.y, tp.max_y);
+    stdout.flush().unwrap();
+}
+
+pub fn get_input(tp: &mut TermPos, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>) -> Option<String> {
+    tp.reset();
+    write!(stdout,
+           "{}",
+           termion::cursor::Goto(1, tp.y))
+            .unwrap();
     print!("{}", PROMPT);
     stdout.flush().unwrap();
     let stdin = stdin();
@@ -155,9 +161,14 @@ pub fn get_input() -> Result<String, ()> {
         match c.unwrap() {
             Key::Ctrl(_) => {
                 println!("Quit");
-                return Err(());
+                return None;
             }
-            Key::Char(c) => tp.char(c),
+            Key::Char(c) => {
+                tp.char(c);
+                if c == '\n' {
+                    return Some(tp.buffer.iter().fold(String::new(), |mut acc, &arg| { acc.push(arg); acc }));
+                }
+            },
             Key::Backspace => tp.backspace(),
             Key::Delete => tp.delete(),
             Key::Left => tp.left(),
@@ -175,5 +186,5 @@ pub fn get_input() -> Result<String, ()> {
                 .unwrap();
         stdout.flush().unwrap();
     }
-    Ok(tp.buffer.iter().fold(String::new(), |mut acc, &arg| { acc.push(arg); acc }))
+    None
 }

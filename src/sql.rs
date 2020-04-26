@@ -29,7 +29,7 @@ pub fn try_connect(connection_options: &ConnectionOptions) -> Result<Client, Str
     Ok(res.unwrap())
 }
 
-pub fn handle_query(mut client: &mut Client, query: &str) -> Result<(), String> {
+pub fn handle_query(mut client: &mut Client, query: &str) -> Result<Vec<String>, String> {
     let res_prepare = _prepare_query(&mut client, query);
     if let Err(e) = res_prepare {
         return Err(e);
@@ -43,20 +43,22 @@ pub fn handle_query(mut client: &mut Client, query: &str) -> Result<(), String> 
 
     let rows = res_execute.unwrap();
     let columns = _get_columns_from_result(&res_prepare, &rows);
-    _display_header(&columns);
+
+    let mut buffer = Vec::new();
+    _display_header(&columns, &mut buffer);
 
     for row in &rows {
+        let mut tmp = String::new();
         for i in 0..row.len() {
             let val = row.get(i).unwrap_or_else(|| {
                 "None"
             });
-
-            print!("{:^width$}|", val, width = columns[i].max_size + ADDITIONAL_SPACES);
+            tmp.push_str(format!("{:^width$}|", val, width = columns[i].max_size + ADDITIONAL_SPACES).as_str());
         }
-        print!("\n");
+        buffer.push(tmp);
     }
 
-    Ok(())
+    Ok(buffer)
 }
 
 fn _prepare_query(client: &mut Client, query: &str) -> Result<Statement, String> {
@@ -79,7 +81,7 @@ fn _get_result_rows(client: &mut Client, query: &str) -> Result<Vec<SimpleQueryR
                 rows.push(row);
             }
             SimpleQueryMessage::CommandComplete(i) => {
-                println!("{} lines modified", i);
+                // println!("{} lines modified", i);
             }
              _ => {},
         }
@@ -104,14 +106,16 @@ fn _get_columns_from_result(result: &Statement, rows: &Vec<SimpleQueryRow>) -> V
     columns
 }
 
-fn _display_header(columns: &Vec<ResultColumn>) {
+fn _display_header(columns: &Vec<ResultColumn>, buffer: &mut Vec<String>) {
+    let mut tmp = String::new();
     for c in columns {
-        print!("{:^width$}|", c.name, width = c.max_size + ADDITIONAL_SPACES);
+        tmp.push_str(format!("{:^width$}|", c.name, width = c.max_size + ADDITIONAL_SPACES).as_str());
     }
-    print!("\n");
+    buffer.push(tmp);
 
+    let mut tmp = String::new();
     for c in columns {
-        print!("{:-<1$}+", "", c.max_size + ADDITIONAL_SPACES);
+        tmp.push_str(format!("{:-<1$}+", "", c.max_size + ADDITIONAL_SPACES).as_str());
     }
-    print!("\n");
+    buffer.push(tmp);
 }
