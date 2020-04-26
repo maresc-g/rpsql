@@ -59,7 +59,7 @@ impl TermPos {
         self.x = self.prompt_len as u16 + 1;
     }
 
-    fn handle_c(&mut self, c: char) {
+    fn char(&mut self, c: char) {
         if c == '\n' {
             self.y += ((self.prompt_len + self.buffer.len()) / self.max_x as usize) as u16 + 1;
             self.y = std::cmp::min(self.y, self.max_y);
@@ -83,7 +83,7 @@ impl TermPos {
         }
     }
 
-    fn handle_left(&mut self) {
+    fn left(&mut self) {
         if self.current_index > 0 {
             self.current_index -= 1;
             if self.x == 1 {
@@ -96,7 +96,7 @@ impl TermPos {
         }
     }
 
-    fn handle_right(&mut self) {
+    fn right(&mut self) {
         if self.current_index < self.buffer.len() {
             self.current_index += 1;
             if self.x == self.max_x {
@@ -109,17 +109,30 @@ impl TermPos {
         }
     }
 
-    fn handle_up(&mut self) {
+    fn up(&mut self) {
         if self.d_y > 0 {
             self.current_index -= self.max_x as usize;
             self.d_y -= 1;
         }
     }
 
-    fn handle_down(&mut self) {
+    fn down(&mut self) {
         if self.current_index + (self.max_x as usize) < self.buffer.len() {
             self.current_index += self.max_x as usize;
             self.d_y += 1;
+        }
+    }
+
+    fn backspace(&mut self) {
+        if self.current_index > 0 {
+            self.buffer.remove(self.current_index - 1);
+            self.left();
+        }
+    }
+
+    fn delete(&mut self) {
+        if self.current_index < self.buffer.len() {
+            self.buffer.remove(self.current_index);
         }
     }
 }
@@ -144,19 +157,19 @@ pub fn get_input() -> Result<String, ()> {
                 println!("Quit");
                 return Err(());
             }
-            Key::Char(c) => {
-                tp.handle_c(c);
-            },
-            Key::Left => tp.handle_left(),
-            Key::Right => tp.handle_right(),
-            Key::Up => tp.handle_up(),
-            Key::Down => tp.handle_down(),
+            Key::Char(c) => tp.char(c),
+            Key::Backspace => tp.backspace(),
+            Key::Delete => tp.delete(),
+            Key::Left => tp.left(),
+            Key::Right => tp.right(),
+            Key::Up => tp.up(),
+            Key::Down => tp.down(),
             _ => {}
         }
         write!(stdout,
                "{}{}{}{}{}",
                termion::cursor::Goto(1, tp.y),
-               termion::clear::CurrentLine,
+               termion::clear::AfterCursor,
                PROMPT, tp.buffer.iter().fold(String::new(), |mut acc, &arg| { acc.push(arg); acc }),
                termion::cursor::Goto(tp.x, tp.y + tp.d_y))
                 .unwrap();
