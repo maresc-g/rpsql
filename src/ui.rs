@@ -37,9 +37,13 @@ impl TermPos {
         self.x = self.prompt_len as u16 + 1;
     }
 
+    fn _compute_max_dy(&self) -> u16 {
+        ((self.prompt_len + self.buffer.len()) / self.max_x as usize) as u16
+    }
+
     fn char(&mut self, c: char) {
         if c == '\n' {
-            self.y += ((self.prompt_len + self.buffer.len()) / self.max_x as usize) as u16 + 1;
+            self.y += self._compute_max_dy() + 1;
             self.y = std::cmp::min(self.y, self.max_y);
             if self.y == self.max_y {
                 print!("{}\n", termion::cursor::Goto(1, self.y));
@@ -53,7 +57,7 @@ impl TermPos {
                 self.x = 1;
                 self.d_y += 1;
             }
-            if self.y + ((self.prompt_len + self.buffer.len()) / self.max_x as usize) as u16 > self.max_y {
+            if self.y + self._compute_max_dy() > self.max_y {
                 self.y -= 1;
                 print!("{}\n{}", termion::cursor::Goto(1, self.max_y), termion::clear::CurrentLine);
             }
@@ -91,12 +95,18 @@ impl TermPos {
             self.current_index -= self.max_x as usize;
             self.d_y -= 1;
         }
+        else {
+            self.beg();
+        }
     }
 
     fn down(&mut self) {
         if self.current_index + (self.max_x as usize) < self.buffer.len() {
             self.current_index += self.max_x as usize;
             self.d_y += 1;
+        }
+        else {
+            self.end();
         }
     }
 
@@ -111,6 +121,18 @@ impl TermPos {
         if self.current_index < self.buffer.len() {
             self.buffer.remove(self.current_index);
         }
+    }
+
+    fn beg(&mut self) {
+        self.current_index = 0;
+        self.x = self.prompt_len as u16 + 1;
+        self.d_y = 0;
+    }
+
+    fn end(&mut self) {
+        self.current_index = self.buffer.len();
+        self.x = ((self.prompt_len + self.buffer.len()) % self.max_x as usize) as u16 + 1;
+        self.d_y = self._compute_max_dy();
     }
 }
 
@@ -159,9 +181,16 @@ pub fn get_input(tp: &mut TermPos, stdout: &mut termion::raw::RawTerminal<std::i
     let stdin = stdin();
     for c in stdin.keys() {
         match c.unwrap() {
-            Key::Ctrl(_) => {
-                println!("Quit");
-                return None;
+            Key::Ctrl(c) => {
+                match c {
+                    'c' | 'd' => {
+                        println!("Quit");
+                        return None;
+                    }
+                    'a' => tp.beg(),
+                    'e' => tp.end(),
+                    _ => {}
+                }
             }
             Key::Char(c) => {
                 tp.char(c);
@@ -175,6 +204,8 @@ pub fn get_input(tp: &mut TermPos, stdout: &mut termion::raw::RawTerminal<std::i
             Key::Right => tp.right(),
             Key::Up => tp.up(),
             Key::Down => tp.down(),
+            Key::Home => tp.beg(),
+            Key::End => tp.end(),
             _ => {}
         }
         write!(stdout,
