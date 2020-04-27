@@ -134,6 +134,42 @@ impl TermPos {
         self.x = ((self.prompt_len + self.buffer.len()) % self.max_x as usize) as u16 + 1;
         self.d_y = self._compute_max_dy();
     }
+
+    fn word_left(&mut self) {
+        let rev_index = self.buffer.len() - self.current_index;
+        let mut skipped = rev_index;
+        let first_non_whitespace_res = self.buffer.iter().rev().skip(skipped).position(|&c| !c.is_whitespace());
+        if let Some(p) = first_non_whitespace_res {
+            skipped = p + rev_index;
+        }
+        let result = self.buffer.iter().rev().skip(skipped).position(|&c| c.is_whitespace());
+        if let Some(p) = result {
+            for _ in 0..(p + (skipped - rev_index)) {
+                self.left();
+            }
+        }
+        else {
+            self.beg();
+        }
+    }
+
+    fn word_right(&mut self) {
+        let first_non_whitespace_res = self.buffer.iter().skip(self.current_index).position(|&c| c.is_whitespace());
+        if let Some(p) = first_non_whitespace_res {
+            let skipped = p + self.current_index;
+            let result = self.buffer.iter().skip(skipped).position(|&c| !c.is_whitespace());
+            if let Some(p) = result {
+                for _ in 0..(p + (skipped - self.current_index)) {
+                    self.right();
+                }
+            }
+            else {
+                self.end();
+            }
+        } else {
+            self.end();
+        }
+    }
 }
 
 pub fn init() {
@@ -206,6 +242,8 @@ pub fn get_input(tp: &mut TermPos, stdout: &mut termion::raw::RawTerminal<std::i
             Key::Down => tp.down(),
             Key::Home => tp.beg(),
             Key::End => tp.end(),
+            Key::PageUp => tp.word_left(),
+            Key::PageDown => tp.word_right(),
             _ => {}
         }
         write!(stdout,
