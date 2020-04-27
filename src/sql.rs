@@ -29,7 +29,27 @@ pub fn try_connect(connection_options: &ConnectionOptions) -> Result<Client, Str
     Ok(res.unwrap())
 }
 
+const BUILTIN_DESCRIBE_ALL: &str = "
+  SELECT schemaname as schema, tablename as name, 'table' as type, tableowner as owner
+    FROM pg_tables
+   WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
+   UNION
+  SELECT schemaname as schema, sequencename as name, 'sequence' as type, sequenceowner as owner
+    FROM pg_sequences
+   WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
+   UNION
+  SELECT schemaname as schema, viewname as name, 'view' as type, viewowner as owner
+    FROM pg_views
+   WHERE schemaname NOT IN('pg_catalog', 'information_schema')
+ORDER BY name
+;
+";
+
 pub fn handle_query(mut client: &mut Client, query: &str) -> Result<Vec<String>, String> {
+    let mut query = query;
+    if query.chars().next().unwrap() == '\\' {
+        query = BUILTIN_DESCRIBE_ALL;
+    }
     let res_prepare = _prepare_query(&mut client, query);
     if let Err(e) = res_prepare {
         return Err(e);
