@@ -1,6 +1,7 @@
 use std::io::{Write, stdout, stdin};
 use termion::event::Key;
 use termion::input::TermRead;
+use termion::cursor::DetectCursorPos;
 
 const PROMPT: &'static str = "$> ";
 
@@ -35,6 +36,12 @@ impl TermPos {
         self.current_index = 0;
         self.d_y = 0;
         self.x = self.prompt_len as u16 + 1;
+    }
+
+    fn set_cursor_pos(&mut self, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>) {
+        let pos = stdout.cursor_pos().unwrap();
+        self.x = pos.0;
+        self.y = pos.1;
     }
 
     fn _compute_max_dy(&self) -> u16 {
@@ -181,29 +188,16 @@ pub fn init() {
 }
 
 pub fn display_vec_on_new_line(tp: &mut TermPos, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>, v: &Vec<String>) {
-    tp.x = 1;
+    print!("\r\n");
     for s in v {
-        write!(stdout,
-               "{}{}\n",
-               termion::cursor::Goto(1, tp.y),
-               s)
-                .unwrap();
-        tp.y += 1;
-        tp.y = std::cmp::min(tp.y, tp.max_y);
+        print!("{}\r\n", s);
     }
-    stdout.flush().unwrap();
+    tp.set_cursor_pos(stdout);
 }
 
 pub fn display_string_on_new_line(tp: &mut TermPos, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>, s: &String) {
-    tp.x = 1;
-    write!(stdout,
-           "{}{}\n",
-           termion::cursor::Goto(1, tp.y),
-           s)
-            .unwrap();
-    tp.y += 1;
-    tp.y = std::cmp::min(tp.y, tp.max_y);
-    stdout.flush().unwrap();
+    print!("\r\n{}\r\n", s);
+    tp.set_cursor_pos(stdout);
 }
 
 pub fn get_input(tp: &mut TermPos, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>) -> Option<String> {
