@@ -2,6 +2,7 @@ use std::io::{Write, stdout, stdin};
 use termion::event::Key;
 use termion::input::TermRead;
 use termion::cursor::DetectCursorPos;
+use termion::event::Event;
 
 const PROMPT: &'static str = "$> ";
 
@@ -209,45 +210,67 @@ pub fn get_input(tp: &mut TermPos, stdout: &mut termion::raw::RawTerminal<std::i
     print!("{}", PROMPT);
     stdout.flush().unwrap();
     let stdin = stdin();
-    for c in stdin.keys() {
-        match c.unwrap() {
-            Key::Ctrl(c) => {
-                match c {
-                    'c' | 'd' => {
-                        println!("Quit");
-                        return None;
+    for e in stdin.events() {
+        let event = e.unwrap();
+        match event {
+            Event::Key(k) => {
+                match k {
+                    Key::Ctrl(c) => {
+                        match c {
+                            'c' | 'd' => {
+                                println!("Quit");
+                                return None;
+                            }
+                            'a' => tp.beg(),
+                            'e' => tp.end(),
+                            _ => {}
+                        }
                     }
-                    'a' => tp.beg(),
-                    'e' => tp.end(),
+                    Key::Char(c) => {
+                        tp.char(c);
+                        if c == '\n' {
+                            return Some(tp.buffer.iter().fold(String::new(), |mut acc, &arg| { acc.push(arg); acc }));
+                        }
+                    },
+                    Key::Backspace => tp.backspace(),
+                    Key::Delete => tp.delete(),
+                    Key::Left => tp.left(),
+                    Key::Right => tp.right(),
+                    Key::Up => tp.up(),
+                    Key::Down => tp.down(),
+                    Key::Home => tp.beg(),
+                    Key::End => tp.end(),
+                    Key::PageUp => tp.word_left(),
+                    Key::PageDown => tp.word_right(),
                     _ => {}
                 }
-            }
-            Key::Char(c) => {
-                tp.char(c);
-                if c == '\n' {
-                    return Some(tp.buffer.iter().fold(String::new(), |mut acc, &arg| { acc.push(arg); acc }));
+                _display_buffer(tp, stdout);
+            },
+            Event::Unsupported(v) => {
+                let mut print = false;
+                if v == [27, 91, 49, 59, 53, 67]  || v == [27, 79, 99] {
+                    tp.word_right();
+                    print = true;
+                }
+                else if v == [27, 91, 49, 59, 53, 68]  || v == [27, 79, 100] {
+                    tp.word_left();
+                    print = true;
+                }
+                if print {
+                    _display_buffer(tp, stdout);
                 }
             },
-            Key::Backspace => tp.backspace(),
-            Key::Delete => tp.delete(),
-            Key::Left => tp.left(),
-            Key::Right => tp.right(),
-            Key::Up => tp.up(),
-            Key::Down => tp.down(),
-            Key::Home => tp.beg(),
-            Key::End => tp.end(),
-            Key::PageUp => tp.word_left(),
-            Key::PageDown => tp.word_right(),
             _ => {}
         }
-        write!(stdout,
-               "{}{}{}{}{}",
-               termion::cursor::Goto(1, tp.y),
-               termion::clear::AfterCursor,
-               PROMPT, tp.buffer.iter().fold(String::new(), |mut acc, &arg| { acc.push(arg); acc }),
-               termion::cursor::Goto(tp.x, tp.y + tp.d_y))
-                .unwrap();
-        stdout.flush().unwrap();
     }
     None
+}
+
+fn _display_buffer(tp: &mut TermPos, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>) {
+   print!("{}{}{}{}{}",
+           termion::cursor::Goto(1, tp.y),
+           termion::clear::AfterCursor,
+           PROMPT, tp.buffer.iter().fold(String::new(), |mut acc, &arg| { acc.push(arg); acc }),
+           termion::cursor::Goto(tp.x, tp.y + tp.d_y));
+    stdout.flush().unwrap();
 }

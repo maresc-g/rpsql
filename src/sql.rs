@@ -100,7 +100,7 @@ fn _get_result_rows(client: &mut Client, query: &str) -> Result<Vec<SimpleQueryR
             SimpleQueryMessage::Row(row) => {
                 rows.push(row);
             }
-            SimpleQueryMessage::CommandComplete(i) => {
+            SimpleQueryMessage::CommandComplete(_i) => {
                 // println!("{} lines modified", i);
             }
              _ => {},
