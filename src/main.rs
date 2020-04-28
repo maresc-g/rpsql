@@ -17,7 +17,7 @@ pub fn main_loop(connection_options: &ConnectionOptions) -> Result<(), String> {
     let mut again = true;
     let mut tp = ui::TermPos::new();
     let mut stdout = std::io::stdout().into_raw_mode().unwrap();
-    let mut history = History::new();
+    let mut history = History::load_from_file();
 
     while again {
         if let Some(query) = ui::get_input(&mut tp, &mut stdout, &mut history) {

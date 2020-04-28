@@ -233,7 +233,7 @@ pub fn get_input(tp: &mut TermPos, stdout: &mut termion::raw::RawTerminal<std::i
                         if c == '\n' {
                             let ret = tp.buffer.iter().fold(String::new(), |mut acc, &arg| { acc.push(arg); acc });
                             if !ret.trim().is_empty() {
-                                history.push(&tp.buffer);
+                                history.push_and_save(&tp.buffer);
                             }
                             history.reset_index();
                             return Some(ret);
