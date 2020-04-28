@@ -32,7 +32,8 @@ impl History {
     }
 
     pub fn next(&mut self) -> Option<Vec<char>> {
-        if self.current_command == 0 {
+        if self.current_command <= 0 {
+            self.current_command = -1;
             return None;
         }
 
