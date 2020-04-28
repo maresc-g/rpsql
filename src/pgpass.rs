@@ -2,11 +2,13 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::os::unix::fs::PermissionsExt;
 
-pub fn parse(path: Option<&str>) -> Option<String> {
+use crate::connection_options::ConnectionOptions;
+
+pub fn parse(path: Option<&str>, options: &ConnectionOptions) -> Option<String> {
     let path = path.unwrap_or("/home/mestag_a/.pgpass");
     let file = open_file_if_safe(path)?;
 
-    parse_file(file)
+    parse_file(file, options)
 }
 
 fn open_file_if_safe(path: &str) -> Option<File> {
@@ -64,7 +66,7 @@ impl Entry {
     }
 }
 
-fn parse_file(file: File) -> Option<String> {
+fn parse_file(file: File, options: &ConnectionOptions) -> Option<String> {
     let reader = BufReader::new(file);
     let uncommented_lines = reader.lines()
         .filter(|entry| {
@@ -77,7 +79,9 @@ fn parse_file(file: File) -> Option<String> {
 
             match Entry::parse(&entry) {
                 Some(entry) => {
-                    println!("{:?}", e);
+                    if entry.matches(&options.host, &options.port, &options.dbname, &options.user) {
+                        return Some(entry.password)
+                    }
                 },
                 None => {
                     eprintln!("Ignoring entry '{}'", entry);
@@ -116,6 +120,15 @@ mod tests {
 
     #[test]
     fn test() {
-        parse(None);
+        let path = "tests/pgpass/ok.pgpass";
+        let password = parse(Some(path), &ConnectionOptions{
+            dbname: "rpsql".to_string(),
+            host: "localhost".to_string(),
+            port: "5432".to_string(),
+            user: "rpsql".to_string(),
+            password: "".to_string()
+        });
+
+        assert_eq!(password, None)
     }
 }
