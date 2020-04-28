@@ -3,6 +3,7 @@ use termion::event::Key;
 use termion::input::TermRead;
 use termion::cursor::DetectCursorPos;
 use termion::event::Event;
+use crate::history::History;
 
 const PROMPT: &'static str = "$> ";
 
@@ -201,7 +202,7 @@ pub fn display_string_on_new_line(tp: &mut TermPos, stdout: &mut termion::raw::R
     tp.set_cursor_pos(stdout);
 }
 
-pub fn get_input(tp: &mut TermPos, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>) -> Option<String> {
+pub fn get_input(tp: &mut TermPos, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>, history: &mut History) -> Option<String> {
     tp.reset();
     write!(stdout,
            "{}",
@@ -210,6 +211,7 @@ pub fn get_input(tp: &mut TermPos, stdout: &mut termion::raw::RawTerminal<std::i
     print!("{}", PROMPT);
     stdout.flush().unwrap();
     let stdin = stdin();
+    let mut buffer_save: Vec<char> = Vec::new();
     for e in stdin.events() {
         let event = e.unwrap();
         match event {
@@ -229,7 +231,12 @@ pub fn get_input(tp: &mut TermPos, stdout: &mut termion::raw::RawTerminal<std::i
                     Key::Char(c) => {
                         tp.char(c);
                         if c == '\n' {
-                            return Some(tp.buffer.iter().fold(String::new(), |mut acc, &arg| { acc.push(arg); acc }));
+                            let ret = tp.buffer.iter().fold(String::new(), |mut acc, &arg| { acc.push(arg); acc });
+                            if !ret.trim().is_empty() {
+                                history.push(&tp.buffer);
+                            }
+                            history.reset_index();
+                            return Some(ret);
                         }
                     },
                     Key::Backspace => tp.backspace(),
@@ -248,13 +255,38 @@ pub fn get_input(tp: &mut TermPos, stdout: &mut termion::raw::RawTerminal<std::i
             },
             Event::Unsupported(v) => {
                 let mut print = false;
-                if v == [27, 91, 49, 59, 53, 67]  || v == [27, 79, 99] {
+                if v == [27, 91, 49, 59, 53, 67]  || v == [27, 79, 99] { // ctrl + right
                     tp.word_right();
                     print = true;
                 }
-                else if v == [27, 91, 49, 59, 53, 68]  || v == [27, 79, 100] {
+                else if v == [27, 91, 49, 59, 53, 68]  || v == [27, 79, 100] { // ctrl + left
                     tp.word_left();
                     print = true;
+                }
+                else if v  == [27, 91, 49, 59, 53, 65] || v == [27, 79, 97] { // ctrl + up
+                    if history.current_command() == -1 {
+                        buffer_save = tp.buffer.clone();
+                    }
+                    if let Some(b) = history.prev() {
+                        tp.buffer = b;
+                    }
+                    print = true;
+                    tp.end();
+                }
+                else if v  == [27, 91, 49, 59, 53, 66] || v == [27, 79, 98] { // ctrl + down
+                    if history.current_command() > -1 {
+                        if let Some(b) = history.next() {
+                            tp.buffer = b;
+                        }
+                        else {
+                            tp.buffer = buffer_save.clone();
+                        }
+                    }
+                    else {
+                        tp.buffer = buffer_save.clone();
+                    }
+                    print = true;
+                    tp.end();
                 }
                 if print {
                     _display_buffer(tp, stdout);
