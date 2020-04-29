@@ -66,26 +66,42 @@ impl Entry {
     }
 }
 
+enum Line<'a> {
+    Commented(&'a str),
+    Empty(&'a str),
+    Parsed(Entry),
+    Malformed(&'a str),
+}
+
+impl Line<'_> {
+    fn parse(s: &str) -> Line {
+        let s = s.trim();
+
+        if s.starts_with('#') {
+            Line::Commented(s)
+        } else if s.is_empty() {
+            Line::Empty(s)
+        } else if let Some(entry) = Entry::parse(s) {
+            Line::Parsed(entry)
+        } else {
+            Line::Malformed(s)
+        }
+    }
+}
+
 fn parse_file(file: File, options: &ConnectionOptions) -> Option<String> {
     let reader = BufReader::new(file);
-    let uncommented_lines = reader.lines()
-        .filter(|entry| {
-            !entry.as_ref().unwrap().starts_with('#')
-        });
-
-    for line in uncommented_lines {
+    for line in reader.lines() {
         if let Ok(entry) = line {
-            let e = Entry::parse(&entry);
-
-            match Entry::parse(&entry) {
-                Some(entry) => {
-                    if entry.matches(&options.host, &options.port, &options.dbname, &options.user) {
-                        return Some(entry.password)
+            match Line::parse(&entry) {
+                Line::Commented(_) => {},
+                Line::Empty(_) => {},
+                Line::Parsed(e) => {
+                    if e.matches(&options.host, &options.port, &options.dbname, &options.user) {
+                        return Some(e.password)
                     }
                 },
-                None => {
-                    eprintln!("Ignoring entry '{}'", entry);
-                }
+                Line::Malformed(_) => {},
             }
         }
     }
@@ -119,7 +135,7 @@ mod tests {
     }
 
     #[test]
-    fn test() {
+    fn rpsql_localhost_5432_rpsql() {
         let path = "tests/pgpass/ok.pgpass";
         let password = parse(Some(path), &ConnectionOptions{
             dbname: "rpsql".to_string(),
@@ -129,6 +145,6 @@ mod tests {
             password: "".to_string()
         });
 
-        assert_eq!(password, None)
+        assert_eq!(password, Some("defaultpass".to_string()))
     }
 }
