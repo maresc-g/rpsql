@@ -1,18 +1,20 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::os::unix::fs::PermissionsExt;
+use std::path::Path;
+
+use log::*;
 
 use crate::connection_options::ConnectionOptions;
 
-pub fn parse(path: Option<&str>, options: &ConnectionOptions) -> Option<String> {
-    let path = path.unwrap_or("/home/mestag_a/.pgpass");
+pub fn parse<P: AsRef<Path>>(path: P, options: &ConnectionOptions) -> Option<String> {
     let file = open_file_if_safe(path)?;
 
     parse_file(file, options)
 }
 
-fn open_file_if_safe(path: &str) -> Option<File> {
-    match File::open(path) {
+fn open_file_if_safe<P: AsRef<Path>>(path: P) -> Option<File> {
+    match File::open(&path) {
         Ok(file) => {
             match file.metadata() {
                 Ok(metadata) => {
@@ -25,35 +27,35 @@ fn open_file_if_safe(path: &str) -> Option<File> {
                     }
                 },
                 Err(err) => {
-                    eprintln!("Couldn't inspect file permissions of '{}': {}", path, err);
+                    eprintln!("Couldn't inspect file permissions of '{}': {}", path.as_ref().display(), err);
                     None
                 }
             }
         },
         Err(err) => {
-            eprintln!("Couldn't open file '{}': {}", path, err);
+            eprintln!("Couldn't open file '{}': {}", path.as_ref().display(), err);
             None
         }
     }
 }
 
 #[derive(Debug)]
-struct Entry {
-    hostname: String,
-    port: String,
-    database: String,
-    username: String,
-    password: String,
+struct Entry<'a> {
+    hostname: &'a str,
+    port: &'a str,
+    database: &'a str,
+    username: &'a str,
+    password: &'a str,
 }
 
-impl Entry {
+impl Entry<'_> {
     fn parse(s: &str) -> Option<Entry> {
         let mut fields = s.split(':');
-        let hostname = fields.next()?.to_string();
-        let port = fields.next()?.to_string();
-        let database = fields.next()?.to_string();
-        let username = fields.next()?.to_string();
-        let password = fields.next()?.to_string();
+        let hostname = fields.next()?;
+        let port = fields.next()?;
+        let database = fields.next()?;
+        let username = fields.next()?;
+        let password = fields.next()?;
 
         Some(Entry{ hostname, port, database, username, password })
     }
@@ -69,7 +71,7 @@ impl Entry {
 enum Line<'a> {
     Commented(&'a str),
     Empty(&'a str),
-    Parsed(Entry),
+    Parsed(Entry<'a>),
     Malformed(&'a str),
 }
 
@@ -98,7 +100,7 @@ fn parse_file(file: File, options: &ConnectionOptions) -> Option<String> {
                 Line::Empty(_) => {},
                 Line::Parsed(e) => {
                     if e.matches(&options.host, &options.port, &options.dbname, &options.user) {
-                        return Some(e.password)
+                        return Some(e.password.to_string())
                     }
                 },
                 Line::Malformed(_) => {},
@@ -137,7 +139,7 @@ mod tests {
     #[test]
     fn rpsql_localhost_5432_rpsql() {
         let path = "tests/pgpass/ok.pgpass";
-        let password = parse(Some(path), &ConnectionOptions{
+        let password = parse(path, &ConnectionOptions{
             dbname: "rpsql".to_string(),
             host: "localhost".to_string(),
             port: "5432".to_string(),

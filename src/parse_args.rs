@@ -34,18 +34,14 @@ pub fn parse() -> Config {
                             .long("user")
                             .help("Database user")
                             .takes_value(true))
-                        .arg(Arg::with_name("password")
-                            .long("password")
-                            .help("User password")
-                            .takes_value(true))
                     .arg(Arg::with_name("profile")
                         .short('P')
                         .long("profile")
                         .help("Connection profile, a shortcut instead of using -d -h -p -u")
                         .takes_value(true)
-                        .conflicts_with_all(&["dbname", "host", "port", "user", "password"]))
+                        .conflicts_with_all(&["dbname", "host", "port", "user"]))
                     .group(ArgGroup::with_name("connection_options")
-                        .args(&["dbname", "host", "port", "user", "password"])
+                        .args(&["dbname", "host", "port", "user"])
                         .multiple(true))
                 .get_matches();
     let mut result = Config::None;
@@ -59,7 +55,6 @@ pub fn parse() -> Config {
             host : matches.value_of("host").unwrap_or_else(|| "localhost").to_string(),
             port : matches.value_of("port").unwrap_or_else(|| "5432").to_string(),
             user : matches.value_of("user").unwrap_or_else(|| &username).to_string(),
-            password : matches.value_of("password").unwrap_or_else(|| &username).to_string(),
         });
     }
 

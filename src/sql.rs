@@ -21,8 +21,13 @@ impl ResultColumn {
 
 const ADDITIONAL_SPACES: usize = 2;
 
-pub fn try_connect(connection_options: &ConnectionOptions) -> Result<Client, String> {
-    let res = Client::connect(connection_options.to_connection_string().as_str(), NoTls);
+pub fn try_connect(connection_options: &ConnectionOptions, password: Option<String>) -> Result<Client, String> {
+    let connection_string = if let Some(password) = password {
+        format!("{} password={}", connection_options.to_connection_string(), password)
+    } else {
+        connection_options.to_connection_string()
+    };
+    let res = Client::connect(connection_string.as_str(), NoTls);
     if let Err(err) = res {
         return Err(format!("Error while trying to connect to server : {}", err));
     }
