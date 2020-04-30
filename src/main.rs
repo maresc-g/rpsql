@@ -15,8 +15,8 @@ use pgpass::parse;
 use dirs;
 
 pub fn main_loop(connection_options: &ConnectionOptions, password: Option<String>) -> Result<(), String> {
-    ui::init();
     let mut client = sql::try_connect(&connection_options, password)?;
+    ui::init();
     let mut again = true;
     let mut tp = ui::TermPos::new();
     let mut stdout = std::io::stdout().into_raw_mode().unwrap();
