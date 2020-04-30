@@ -179,6 +179,11 @@ impl TermPos {
             self.end();
         }
     }
+
+    fn clear_term(&mut self) {
+        self.y = 1;
+        print!("{}", termion::clear::All);
+    }
 }
 
 pub fn init() {
@@ -225,6 +230,7 @@ pub fn get_input(tp: &mut TermPos, stdout: &mut termion::raw::RawTerminal<std::i
                             }
                             'a' => tp.beg(),
                             'e' => tp.end(),
+                            'l' => tp.clear_term(),
                             _ => {}
                         }
                     }
