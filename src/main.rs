@@ -13,7 +13,8 @@ use termion::raw::IntoRawMode;
 use history::History;
 use pgpass::parse;
 use dirs;
-use ui::event_loop::{self, TermPos};
+use ui::event_loop::{self};
+use ui::text_input::TermPos;
 
 pub fn main_loop(connection_options: &ConnectionOptions, password: Option<String>) -> Result<(), String> {
     let mut client = sql::try_connect(&connection_options, password)?;
