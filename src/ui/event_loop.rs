@@ -1,8 +1,7 @@
 use std::io::{Write, stdout, stdin};
-use termion::event::Key;
 use termion::input::TermRead;
 use termion::cursor::DetectCursorPos;
-use termion::event::Event;
+use termion::event::{Event, Key, MouseEvent};
 use crate::history::History;
 
 const PROMPT: &'static str = "$> ";
@@ -16,6 +15,46 @@ pub struct TermPos {
     max_x: u16,
     max_y: u16,
     prompt_len: usize,
+}
+
+enum KeyEvent {
+    Key(Key),
+    Ctrl(Key),
+    Alt(Key),
+}
+
+enum TrueEvent {
+    KeyEvent(KeyEvent),
+    MouseEvent(MouseEvent),
+    Unsupported(Vec<u8>),
+}
+
+impl TrueEvent {
+    fn from_termion_event(event: Event) -> TrueEvent {
+        match event {
+            Event::Key(k) => {
+                match k {
+                    Key::Ctrl(c) => TrueEvent::KeyEvent(KeyEvent::Ctrl(Key::Char(c))),
+                    Key::Alt(c) => TrueEvent::KeyEvent(KeyEvent::Alt(Key::Char(c))),
+                    _ => TrueEvent::KeyEvent(KeyEvent::Key(k))
+                }
+            },
+            Event::Mouse(m) => TrueEvent::MouseEvent(m),
+            Event::Unsupported(v) => {
+                if v == [27, 91, 49, 59, 53, 67]  || v == [27, 79, 99] { // ctrl + right
+                    TrueEvent::KeyEvent(KeyEvent::Ctrl(Key::Right))
+                } else if v == [27, 91, 49, 59, 53, 68]  || v == [27, 79, 100] { // ctrl + left
+                    TrueEvent::KeyEvent(KeyEvent::Ctrl(Key::Left))
+                } else if v  == [27, 91, 49, 59, 53, 65] || v == [27, 79, 97] { // ctrl + up
+                    TrueEvent::KeyEvent(KeyEvent::Ctrl(Key::Up))
+                } else if v  == [27, 91, 49, 59, 53, 66] || v == [27, 79, 98] { // ctrl + down
+                    TrueEvent::KeyEvent(KeyEvent::Ctrl(Key::Down))
+                } else {
+                    TrueEvent::Unsupported(v)
+                }
+            }
+        }
+    }
 }
 
 impl TermPos {
@@ -219,84 +258,82 @@ pub fn get_input(tp: &mut TermPos, stdout: &mut termion::raw::RawTerminal<std::i
     let mut buffer_save: Vec<char> = Vec::new();
     for e in stdin.events() {
         let event = e.unwrap();
-        match event {
-            Event::Key(k) => {
-                match k {
-                    Key::Ctrl(c) => {
-                        match c {
-                            'c' | 'd' => {
-                                println!("Quit");
-                                return None;
-                            }
-                            'a' => tp.beg(),
-                            'e' => tp.end(),
-                            'l' => tp.clear_term(),
+        let true_event = TrueEvent::from_termion_event(event);
+
+        match true_event {
+            TrueEvent::KeyEvent(ke) => {
+                match ke {
+                    KeyEvent::Key(k) => {
+                        match k {
+                            Key::Char(c) => {
+                                tp.char(c);
+                                if c == '\n' {
+                                    let ret = tp.buffer.iter().fold(String::new(), |mut acc, &arg| { acc.push(arg); acc });
+                                    if !ret.trim().is_empty() {
+                                        history.push_and_save(&tp.buffer);
+                                    }
+                                    history.reset_index();
+                                    return Some(ret);
+                                }
+                            },
+                            Key::Backspace => tp.backspace(),
+                            Key::Delete => tp.delete(),
+                            Key::Left => tp.left(),
+                            Key::Right => tp.right(),
+                            Key::Up => tp.up(),
+                            Key::Down => tp.down(),
+                            Key::Home => tp.beg(),
+                            Key::End => tp.end(),
+                            Key::PageUp => tp.word_left(),
+                            Key::PageDown => tp.word_right(),
                             _ => {}
                         }
-                    }
-                    Key::Char(c) => {
-                        tp.char(c);
-                        if c == '\n' {
-                            let ret = tp.buffer.iter().fold(String::new(), |mut acc, &arg| { acc.push(arg); acc });
-                            if !ret.trim().is_empty() {
-                                history.push_and_save(&tp.buffer);
-                            }
-                            history.reset_index();
-                            return Some(ret);
-                        }
                     },
-                    Key::Backspace => tp.backspace(),
-                    Key::Delete => tp.delete(),
-                    Key::Left => tp.left(),
-                    Key::Right => tp.right(),
-                    Key::Up => tp.up(),
-                    Key::Down => tp.down(),
-                    Key::Home => tp.beg(),
-                    Key::End => tp.end(),
-                    Key::PageUp => tp.word_left(),
-                    Key::PageDown => tp.word_right(),
+                    KeyEvent::Ctrl(k) => {
+                        match k {
+                            Key::Char(c) => {
+                                match c {
+                                    'c' | 'd' => {
+                                        println!("Quit");
+                                        return None;
+                                    }
+                                    'a' => tp.beg(),
+                                    'e' => tp.end(),
+                                    'l' => tp.clear_term(),
+                                    _ => {}
+                                }
+                            }
+                            Key::Left => tp.word_left(),
+                            Key::Right => tp.word_right(),
+                            Key::Up => {
+                                if history.current_command() == -1 {
+                                    buffer_save = tp.buffer.clone();
+                                }
+                                if let Some(b) = history.prev() {
+                                    tp.buffer = b;
+                                }
+                                tp.end();
+                            },
+                            Key::Down => {
+                                if history.current_command() > -1 {
+                                    if let Some(b) = history.next() {
+                                        tp.buffer = b;
+                                    }
+                                    else {
+                                        tp.buffer = buffer_save.clone();
+                                    }
+                                }
+                                else {
+                                    tp.buffer = buffer_save.clone();
+                                }
+                                tp.end();
+                            },
+                            _ => {}
+                        }
+                   },
                     _ => {}
                 }
                 _display_buffer(tp, stdout);
-            },
-            Event::Unsupported(v) => {
-                let mut print = false;
-                if v == [27, 91, 49, 59, 53, 67]  || v == [27, 79, 99] { // ctrl + right
-                    tp.word_right();
-                    print = true;
-                }
-                else if v == [27, 91, 49, 59, 53, 68]  || v == [27, 79, 100] { // ctrl + left
-                    tp.word_left();
-                    print = true;
-                }
-                else if v  == [27, 91, 49, 59, 53, 65] || v == [27, 79, 97] { // ctrl + up
-                    if history.current_command() == -1 {
-                        buffer_save = tp.buffer.clone();
-                    }
-                    if let Some(b) = history.prev() {
-                        tp.buffer = b;
-                    }
-                    print = true;
-                    tp.end();
-                }
-                else if v  == [27, 91, 49, 59, 53, 66] || v == [27, 79, 98] { // ctrl + down
-                    if history.current_command() > -1 {
-                        if let Some(b) = history.next() {
-                            tp.buffer = b;
-                        }
-                        else {
-                            tp.buffer = buffer_save.clone();
-                        }
-                    }
-                    else {
-                        tp.buffer = buffer_save.clone();
-                    }
-                    print = true;
-                    tp.end();
-                }
-                if print {
-                    _display_buffer(tp, stdout);
-                }
             },
             _ => {}
         }
