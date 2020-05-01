@@ -197,7 +197,6 @@ pub enum TextInputEvent {
 pub struct TextInput {
     tp: TermPos,
     prompt: String,
-    buffer_save: Vec<char>,
 }
 
 impl TextInput {
@@ -205,7 +204,6 @@ impl TextInput {
         TextInput {
             tp: TermPos::new(),
             prompt: prompt.to_string(),
-            buffer_save: Vec::new(),
         }
     }
 
@@ -263,6 +261,16 @@ impl TextInput {
             _ => {}
         }
         TextInputEvent::None
+    }
+
+    pub fn data(&self) -> Vec<char> {
+        self.tp.buffer.clone()
+    }
+
+    pub fn set_data(&mut self, d: Vec<char>, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>) {
+        self.tp.buffer = d;
+        self.tp.end();
+        _display_buffer(&mut self.tp, stdout);
     }
 }
 

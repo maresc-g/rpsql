@@ -43,33 +43,32 @@ pub fn get_input(tp: &mut TermPos, stdout: &mut termion::raw::RawTerminal<std::i
     stdout.flush().unwrap();
     let stdin = stdin();
     let mut ti = TextInput::new(PROMPT);
+    let mut buffer_save: Vec<char> = Vec::new();
     for e in stdin.events() {
         let event = e.unwrap();
         let true_event = TrueEvent::from_termion_event(event);
         let res = ti.handle_event(true_event, stdout);
         match res {
             TextInputEvent::HistoryPrev => {
-                // if self.history.current_command() == -1 {
-                //     self.buffer_save = self.tp.buffer.clone();
-                // }
-                // if let Some(b) = self.history.prev() {
-                //     self.tp.buffer = b;
-                // }
-                // self.tp.end();
+                if history.current_command() == -1 {
+                    buffer_save = ti.data();
+                }
+                if let Some(b) = history.prev() {
+                    ti.set_data(b, stdout);
+                }
             },
             TextInputEvent::HistoryNext => {
-                // if self.history.current_command() > -1 {
-                //     if let Some(b) = self.history.next() {
-                //         self.tp.buffer = b;
-                //     }
-                //     else {
-                //         self.tp.buffer = self.buffer_save.clone();
-                //     }
-                // }
-                // else {
-                //     self.tp.buffer = self.buffer_save.clone();
-                // }
-                // self.tp.end();
+                if history.current_command() > -1 {
+                    if let Some(b) = history.next() {
+                        ti.set_data(b, stdout);
+                    }
+                    else {
+                        ti.set_data(buffer_save.clone(), stdout);
+                    }
+                }
+                else {
+                    ti.set_data(buffer_save.clone(), stdout);
+                }
             },
             TextInputEvent::None => {}
             TextInputEvent::Quit => return Event::Quit,
