@@ -185,24 +185,31 @@ impl TermPos {
     }
 }
 
-pub struct TextInput<'a> {
+#[derive(PartialEq)]
+pub enum TextInputEvent {
+    Quit,
+    HistoryPrev,
+    HistoryNext,
+    Buffer(Vec<char>, String),
+    None,
+}
+
+pub struct TextInput {
     tp: TermPos,
     prompt: String,
-    history: &'a mut History,
     buffer_save: Vec<char>,
 }
 
-impl<'a> TextInput<'a> {
-    pub fn new(prompt: &str, history: &'a mut History) -> TextInput<'a> {
+impl TextInput {
+    pub fn new(prompt: &str) -> TextInput {
         TextInput {
             tp: TermPos::new(),
             prompt: prompt.to_string(),
-            history: history,
             buffer_save: Vec::new(),
         }
     }
 
-    pub fn handle_event(&mut self, event: TrueEvent, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>) -> Option<String> {
+    pub fn handle_event(&mut self, event: TrueEvent, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>) -> TextInputEvent {
         match event {
             TrueEvent::KeyEvent(ke) => {
                 match ke {
@@ -212,11 +219,7 @@ impl<'a> TextInput<'a> {
                                 self.tp.char(c);
                                 if c == '\n' {
                                     let ret = self.tp.buffer.iter().fold(String::new(), |mut acc, &arg| { acc.push(arg); acc });
-                                    if !ret.trim().is_empty() {
-                                        self.history.push_and_save(&self.tp.buffer);
-                                    }
-                                    self.history.reset_index();
-                                    return Some(ret);
+                                    return TextInputEvent::Buffer(self.tp.buffer.clone(), ret);
                                 }
                             },
                             Key::Backspace => self.tp.backspace(),
@@ -238,7 +241,7 @@ impl<'a> TextInput<'a> {
                                 match c {
                                     'c' | 'd' => {
                                         println!("Quit");
-                                        return None;
+                                        return TextInputEvent::Quit;
                                     }
                                     'a' => self.tp.beg(),
                                     'e' => self.tp.end(),
@@ -248,29 +251,8 @@ impl<'a> TextInput<'a> {
                             }
                             Key::Left => self.tp.word_left(),
                             Key::Right => self.tp.word_right(),
-                            Key::Up => {
-                                if self.history.current_command() == -1 {
-                                    self.buffer_save = self.tp.buffer.clone();
-                                }
-                                if let Some(b) = self.history.prev() {
-                                    self.tp.buffer = b;
-                                }
-                                self.tp.end();
-                            },
-                            Key::Down => {
-                                if self.history.current_command() > -1 {
-                                    if let Some(b) = self.history.next() {
-                                        self.tp.buffer = b;
-                                    }
-                                    else {
-                                        self.tp.buffer = self.buffer_save.clone();
-                                    }
-                                }
-                                else {
-                                    self.tp.buffer = self.buffer_save.clone();
-                                }
-                                self.tp.end();
-                            },
+                            Key::Up => return TextInputEvent::HistoryPrev,
+                            Key::Down => return TextInputEvent::HistoryNext,
                             _ => {}
                         }
                     },
@@ -280,7 +262,7 @@ impl<'a> TextInput<'a> {
             },
             _ => {}
         }
-        None
+        TextInputEvent::None
     }
 }
 
