@@ -13,24 +13,25 @@ use termion::raw::IntoRawMode;
 use history::History;
 use pgpass::parse;
 use dirs;
+use ui::event_loop::{self, TermPos};
 
 pub fn main_loop(connection_options: &ConnectionOptions, password: Option<String>) -> Result<(), String> {
     let mut client = sql::try_connect(&connection_options, password)?;
-    ui::init();
+    event_loop::init();
     let mut again = true;
-    let mut tp = ui::TermPos::new();
+    let mut tp = TermPos::new();
     let mut stdout = std::io::stdout().into_raw_mode().unwrap();
     let mut history = History::load_from_file();
 
     while again {
-        if let Some(query) = ui::get_input(&mut tp, &mut stdout, &mut history) {
+        if let Some(query) = event_loop::get_input(&mut tp, &mut stdout, &mut history) {
             if !query.trim().is_empty() {
                 let res = sql::handle_query(&mut client, query.as_str());
                 if let Err(e) = res {
-                    ui::display_string_on_new_line(&mut tp, &mut stdout, &e.to_string());
+                    event_loop::display_string_on_new_line(&mut tp, &mut stdout, &e.to_string());
                 }
                 else {
-                    ui::display_vec_on_new_line(&mut tp, &mut stdout, &res.unwrap());
+                    event_loop::display_vec_on_new_line(&mut tp, &mut stdout, &res.unwrap());
                 }
             }
         }
