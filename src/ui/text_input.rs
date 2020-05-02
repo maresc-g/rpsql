@@ -1,8 +1,7 @@
 use termion::cursor::DetectCursorPos;
 use crate::ui::event::{TrueEvent, KeyEvent};
 use termion::event::Key;
-use crate::history::History;
-use std::io::{Write, stdout, stdin};
+use std::io::{Write};
 
 const PROMPT: &'static str = "$> ";
 
@@ -18,11 +17,12 @@ pub struct TermPos {
 }
 
 impl TermPos {
-    pub fn new() -> TermPos {
+    pub fn new(stdout: &mut termion::raw::RawTerminal<std::io::Stdout>) -> TermPos {
         let (max_x, max_y) = termion::terminal_size().unwrap();
+        let pos = stdout.cursor_pos().unwrap();
         TermPos {
             x: PROMPT.len() as u16 + 1,
-            y: 1,
+            y: pos.1,
             buffer: Vec::new(),
             current_index: 0,
             d_y: 0,
@@ -32,43 +32,21 @@ impl TermPos {
         }
     }
 
-    fn reset(&mut self) {
-        self.buffer = Vec::new();
-        self.current_index = 0;
-        self.d_y = 0;
-        self.x = self.prompt_len as u16 + 1;
-    }
-
-    fn set_cursor_pos(&mut self, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>) {
-        let pos = stdout.cursor_pos().unwrap();
-        self.x = pos.0;
-        self.y = pos.1;
-    }
-
     fn _compute_max_dy(&self) -> u16 {
         ((self.prompt_len + self.buffer.len()) / self.max_x as usize) as u16
     }
 
     fn char(&mut self, c: char) {
-        if c == '\n' {
-            self.y += self._compute_max_dy() + 1;
-            self.y = std::cmp::min(self.y, self.max_y);
-            if self.y == self.max_y {
-                print!("{}\n", termion::cursor::Goto(1, self.y));
-            }
+        self.buffer.insert(self.current_index, c);
+        self.current_index += 1;
+        self.x += 1;
+        if self.x > self.max_x {
+            self.x = 1;
+            self.d_y += 1;
         }
-        else {
-            self.buffer.insert(self.current_index, c);
-            self.current_index += 1;
-            self.x += 1;
-            if self.x > self.max_x {
-                self.x = 1;
-                self.d_y += 1;
-            }
-            if self.y + self._compute_max_dy() > self.max_y {
-                self.y -= 1;
-                print!("{}\n{}", termion::cursor::Goto(1, self.max_y), termion::clear::CurrentLine);
-            }
+        if self.y + self._compute_max_dy() > self.max_y {
+            self.y -= 1;
+            print!("{}\n{}", termion::cursor::Goto(1, self.max_y), termion::clear::CurrentLine);
         }
     }
 
@@ -196,28 +174,29 @@ pub enum TextInputEvent {
 
 pub struct TextInput {
     tp: TermPos,
-    prompt: String,
 }
 
 impl TextInput {
-    pub fn new(prompt: &str) -> TextInput {
-        TextInput {
-            tp: TermPos::new(),
-            prompt: prompt.to_string(),
-        }
+    pub fn new(stdout: &mut termion::raw::RawTerminal<std::io::Stdout>) -> TextInput {
+        let ti = TextInput {
+            tp: TermPos::new(stdout),
+        };
+        ti._display_buffer();
+        ti
     }
 
-    pub fn handle_event(&mut self, event: TrueEvent, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>) -> TextInputEvent {
+    pub fn handle_event(&mut self, event: TrueEvent) -> TextInputEvent {
         match event {
             TrueEvent::KeyEvent(ke) => {
                 match ke {
                     KeyEvent::Key(k) => {
                         match k {
                             Key::Char(c) => {
-                                self.tp.char(c);
                                 if c == '\n' {
                                     let ret = self.tp.buffer.iter().fold(String::new(), |mut acc, &arg| { acc.push(arg); acc });
                                     return TextInputEvent::Buffer(self.tp.buffer.clone(), ret);
+                                } else {
+                                    self.tp.char(c);
                                 }
                             },
                             Key::Backspace => self.tp.backspace(),
@@ -238,7 +217,7 @@ impl TextInput {
                             Key::Char(c) => {
                                 match c {
                                     'c' | 'd' => {
-                                        println!("Quit");
+                                        print!("Quit\r\n");
                                         return TextInputEvent::Quit;
                                     }
                                     'a' => self.tp.beg(),
@@ -256,7 +235,7 @@ impl TextInput {
                     },
                     _ => {}
                 }
-                _display_buffer(&mut self.tp, stdout);
+                self._display_buffer();
             },
             _ => {}
         }
@@ -267,18 +246,18 @@ impl TextInput {
         self.tp.buffer.clone()
     }
 
-    pub fn set_data(&mut self, d: Vec<char>, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>) {
+    pub fn set_data(&mut self, d: Vec<char>) {
         self.tp.buffer = d;
         self.tp.end();
-        _display_buffer(&mut self.tp, stdout);
+        self._display_buffer();
     }
-}
 
-fn _display_buffer(tp: &mut TermPos, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>) {
-    print!("{}{}{}{}{}",
-           termion::cursor::Goto(1, tp.y),
-           termion::clear::AfterCursor,
-           PROMPT, tp.buffer.iter().fold(String::new(), |mut acc, &arg| { acc.push(arg); acc }),
-           termion::cursor::Goto(tp.x, tp.y + tp.d_y));
-    stdout.flush().unwrap();
+    fn _display_buffer(&self) {
+        print!("{}{}{}{}{}",
+               termion::cursor::Goto(1, self.tp.y),
+               termion::clear::AfterCursor,
+               PROMPT, self.tp.buffer.iter().fold(String::new(), |mut acc, &arg| { acc.push(arg); acc }),
+               termion::cursor::Goto(self.tp.x, self.tp.y + self.tp.d_y));
+        std::io::stdout().flush().unwrap();
+    }
 }

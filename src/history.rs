@@ -88,7 +88,6 @@ impl History {
             let f = fs::OpenOptions::new().read(true).create(true).write(true).append(true).open(&path);
             match f {
                 Ok(mut file) => {
-                    println!("Ok");
                     let mut contents = String::new();
                     file.read_to_string(&mut contents).unwrap();
                     for l in contents.lines() {
