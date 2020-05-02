@@ -1,4 +1,4 @@
-use std::io::{Write, stdout, stdin};
+use std::io::{stdin};
 use termion::input::TermRead;
 use crate::history::History;
 use crate::ui::event::TrueEvent;
@@ -11,20 +11,16 @@ pub enum Event {
 }
 
 pub fn init() {
-    write!(stdout(),
-           "{}{}",
-           termion::cursor::Goto(1, 1),
-           termion::clear::All)
-            .unwrap();
+   print!("{}{}", termion::cursor::Goto(1, 1), termion::clear::All);
 }
 
-pub fn display_vec(v: &Vec<String>) {
+pub fn display_vec(v: &[String]) {
     for s in v {
         display_string(s);
     }
 }
 
-pub fn display_string(s: &String) {
+pub fn display_string(s: &str) {
     print!("{}\r\n", s);
 }
 

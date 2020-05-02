@@ -3,8 +3,6 @@ use std::io::{BufRead, BufReader};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
-use log::*;
-
 use crate::connection_options::ConnectionOptions;
 
 pub fn parse<P: AsRef<Path>>(path: P, options: &ConnectionOptions) -> Option<String> {

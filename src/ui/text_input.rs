@@ -3,7 +3,7 @@ use crate::ui::event::{TrueEvent, KeyEvent};
 use termion::event::Key;
 use std::io::{Write};
 
-const PROMPT: &'static str = "$> ";
+const PROMPT: &str = "$> ";
 
 pub struct TermPos {
     x: u16,
@@ -26,8 +26,8 @@ impl TermPos {
             buffer: Vec::new(),
             current_index: 0,
             d_y: 0,
-            max_x: max_x,
-            max_y: max_y,
+            max_x,
+            max_y,
             prompt_len: PROMPT.len()
         }
     }
@@ -186,58 +186,55 @@ impl TextInput {
     }
 
     pub fn handle_event(&mut self, event: TrueEvent) -> TextInputEvent {
-        match event {
-            TrueEvent::KeyEvent(ke) => {
-                match ke {
-                    KeyEvent::Key(k) => {
-                        match k {
-                            Key::Char(c) => {
-                                if c == '\n' {
-                                    let ret = self.tp.buffer.iter().fold(String::new(), |mut acc, &arg| { acc.push(arg); acc });
-                                    return TextInputEvent::Buffer(self.tp.buffer.clone(), ret);
-                                } else {
-                                    self.tp.char(c);
-                                }
-                            },
-                            Key::Backspace => self.tp.backspace(),
-                            Key::Delete => self.tp.delete(),
-                            Key::Left => self.tp.left(),
-                            Key::Right => self.tp.right(),
-                            Key::Up => self.tp.up(),
-                            Key::Down => self.tp.down(),
-                            Key::Home => self.tp.beg(),
-                            Key::End => self.tp.end(),
-                            Key::PageUp => self.tp.word_left(),
-                            Key::PageDown => self.tp.word_right(),
-                            _ => {}
-                        }
-                    },
-                    KeyEvent::Ctrl(k) => {
-                        match k {
-                            Key::Char(c) => {
-                                match c {
-                                    'c' | 'd' => {
-                                        print!("Quit\r\n");
-                                        return TextInputEvent::Quit;
-                                    }
-                                    'a' => self.tp.beg(),
-                                    'e' => self.tp.end(),
-                                    'l' => self.tp.clear_term(),
-                                    _ => {}
-                                }
+        if let TrueEvent::KeyEvent(ke) = event {
+            match ke {
+                KeyEvent::Key(k) => {
+                    match k {
+                        Key::Char(c) => {
+                            if c == '\n' {
+                                let ret = self.tp.buffer.iter().fold(String::new(), |mut acc, &arg| { acc.push(arg); acc });
+                                return TextInputEvent::Buffer(self.tp.buffer.clone(), ret);
+                            } else {
+                                self.tp.char(c);
                             }
-                            Key::Left => self.tp.word_left(),
-                            Key::Right => self.tp.word_right(),
-                            Key::Up => return TextInputEvent::HistoryPrev,
-                            Key::Down => return TextInputEvent::HistoryNext,
-                            _ => {}
+                        },
+                        Key::Backspace => self.tp.backspace(),
+                        Key::Delete => self.tp.delete(),
+                        Key::Left => self.tp.left(),
+                        Key::Right => self.tp.right(),
+                        Key::Up => self.tp.up(),
+                        Key::Down => self.tp.down(),
+                        Key::Home => self.tp.beg(),
+                        Key::End => self.tp.end(),
+                        Key::PageUp => self.tp.word_left(),
+                        Key::PageDown => self.tp.word_right(),
+                        _ => {}
+                    }
+                },
+                KeyEvent::Ctrl(k) => {
+                    match k {
+                        Key::Char(c) => {
+                            match c {
+                                'c' | 'd' => {
+                                    print!("Quit\r\n");
+                                    return TextInputEvent::Quit;
+                                }
+                                'a' => self.tp.beg(),
+                                'e' => self.tp.end(),
+                                'l' => self.tp.clear_term(),
+                                _ => {}
+                            }
                         }
-                    },
-                    _ => {}
-                }
-                self._display_buffer();
-            },
-            _ => {}
+                        Key::Left => self.tp.word_left(),
+                        Key::Right => self.tp.word_right(),
+                        Key::Up => return TextInputEvent::HistoryPrev,
+                        Key::Down => return TextInputEvent::HistoryNext,
+                        _ => {}
+                    }
+                },
+                _ => {}
+            }
+            self._display_buffer();
         }
         TextInputEvent::None
     }

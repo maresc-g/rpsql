@@ -11,8 +11,6 @@ use connection_options::ConnectionOptions;
 use std::io::Error;
 use termion::raw::IntoRawMode;
 use history::History;
-use pgpass::parse;
-use dirs;
 use ui::event_loop::{self, Event};
 
 pub fn main_loop(connection_options: &ConnectionOptions, password: Option<String>) -> Result<(), String> {
@@ -31,7 +29,7 @@ pub fn main_loop(connection_options: &ConnectionOptions, password: Option<String
                     if let Err(e) = res {
                         event_loop::display_string(&e.to_string());
                     } else {
-                        event_loop::display_vec(&res.unwrap());
+                        event_loop::display_vec(&res.unwrap()[..]);
                     }
                 }
             },

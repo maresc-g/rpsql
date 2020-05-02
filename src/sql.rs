@@ -52,7 +52,7 @@ ORDER BY name
 
 pub fn handle_query(mut client: &mut Client, query: &str) -> Result<Vec<String>, String> {
     let mut query = query;
-    if query.chars().next().unwrap() == '\\' {
+    if query.starts_with('\\') {
         query = BUILTIN_DESCRIBE_ALL;
     }
     let res_prepare = _prepare_query(&mut client, query);
@@ -74,11 +74,11 @@ pub fn handle_query(mut client: &mut Client, query: &str) -> Result<Vec<String>,
 
     for row in &rows {
         let mut tmp = String::new();
-        for i in 0..row.len() {
+        for (i, c) in columns.iter().enumerate() {
             let val = row.get(i).unwrap_or_else(|| {
                 "None"
             });
-            tmp.push_str(format!("{:^width$}|", val, width = columns[i].max_size + ADDITIONAL_SPACES).as_str());
+            tmp.push_str(format!("{:^width$}|", val, width = c.max_size + ADDITIONAL_SPACES).as_str());
         }
         buffer.push(tmp);
     }
@@ -114,7 +114,7 @@ fn _get_result_rows(client: &mut Client, query: &str) -> Result<Vec<SimpleQueryR
     Ok(rows)
 }
 
-fn _get_columns_from_result(result: &Statement, rows: &Vec<SimpleQueryRow>) -> Vec<ResultColumn> {
+fn _get_columns_from_result(result: &Statement, rows: &[SimpleQueryRow]) -> Vec<ResultColumn> {
     let mut columns : Vec<ResultColumn> = Vec::new();
     for (i, c) in result.columns().iter().enumerate() {
         columns.push(ResultColumn::new());
@@ -123,15 +123,15 @@ fn _get_columns_from_result(result: &Statement, rows: &Vec<SimpleQueryRow>) -> V
         columns[i].type_ = c.type_().clone();
     }
     for row in rows {
-        for i in 0..row.len() {
+        for (i, c) in columns.iter_mut().enumerate() {
             let val = row.get(i).unwrap_or_else(|| "None");
-            columns[i].max_size = std::cmp::max(columns[i].max_size, val.len());
+            c.max_size = std::cmp::max(c.max_size, val.len());
         }
     }
     columns
 }
 
-fn _display_header(columns: &Vec<ResultColumn>, buffer: &mut Vec<String>) {
+fn _display_header(columns: &[ResultColumn], buffer: &mut Vec<String>) {
     let mut tmp = String::new();
     for c in columns {
         tmp.push_str(format!("{:^width$}|", c.name, width = c.max_size + ADDITIONAL_SPACES).as_str());

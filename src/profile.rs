@@ -1,7 +1,6 @@
 use std::fs::{self, File, ReadDir};
 use std::io::{self, Write};
 use std::path;
-use dirs;
 use std::env;
 use crate::connection_options::ConnectionOptions;
 
@@ -24,10 +23,10 @@ pub fn load(profile_name: &str) -> Result<ConnectionOptions, io::Error> {
     profile_file.push(&dir);
     profile_file.push(format!("{}.json", profile_name));
     if let Some(p) = profiles.iter().find(|&p| p == &profile_file) {
-        return _load_profile(p);
+        _load_profile(p)
     }
     else {
-        return Err(io::Error::new(io::ErrorKind::NotFound, format!("Error : profile {} not found", profile_name)));
+        Err(io::Error::new(io::ErrorKind::NotFound, format!("Error : profile {} not found", profile_name)))
     }
 }
 
@@ -47,7 +46,7 @@ fn _get_dir_and_profiles() -> Result<(path::PathBuf, Vec<path::PathBuf>), io::Er
     Ok((dir, profiles))
 }
 
-fn _get_user_choice(dir: &path::PathBuf, profiles: &Vec<path::PathBuf>) -> Result<ConnectionOptions, io::Error> {
+fn _get_user_choice(dir: &path::PathBuf, profiles: &[path::PathBuf]) -> Result<ConnectionOptions, io::Error> {
     loop {
         let mut buffer = String::new();
         print!("Choose your profile : ");
@@ -74,7 +73,7 @@ fn _get_user_choice(dir: &path::PathBuf, profiles: &Vec<path::PathBuf>) -> Resul
                 else {
                     profile_name.push(&dir);
                     profile_name.push(format!("{}.json", choice));
-                    if let None = profiles.iter().find(|&p| p == &profile_name) {
+                    if profiles.iter().find(|&p| p == &profile_name).is_none() {
                         eprintln!("Invalid choice");
                         continue;
                     }
@@ -86,13 +85,13 @@ fn _get_user_choice(dir: &path::PathBuf, profiles: &Vec<path::PathBuf>) -> Resul
 }
 
 fn _create_new_profile() -> (String, ConnectionOptions) {
-    let mut c = ConnectionOptions::new();
+    let mut c = ConnectionOptions::default();
     let username = env::var("USER").unwrap_or_else(|_| String::from("postgres"));
     let profile_name = _read_attribute("Profile name (.json is added automatically)", None);
     c.host = _read_attribute("Host", Some("localhost".to_string()));
     c.port = _read_attribute("Port", Some("5432".to_string()));
     c.dbname = _read_attribute("Database name", Some(username.clone()));
-    c.user = _read_attribute("User", Some(username.clone()));
+    c.user = _read_attribute("User", Some(username));
     (profile_name, c)
 }
 
@@ -116,7 +115,7 @@ fn _read_attribute(prompt: &str, default: Option<String>) -> String {
     buffer
 }
 
-fn _save_profile(dir: &path::PathBuf, profile_name: &String, connect_options: &ConnectionOptions) -> io::Result<()> {
+fn _save_profile(dir: &path::PathBuf, profile_name: &str, connect_options: &ConnectionOptions) -> io::Result<()> {
     let mut filename = path::PathBuf::new();
     filename.push(dir);
     filename.push(format!("{}.json", profile_name));

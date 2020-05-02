@@ -11,7 +11,7 @@ pub struct History {
 
 impl History {
     fn new() -> History {
-        return History {
+        History {
             commands: Vec::new(),
             current_command: -1,
             file: None,
@@ -41,20 +41,20 @@ impl History {
         Some(self.commands.get(self.current_command as usize).unwrap().clone())
     }
 
-    pub fn push_and_save(&mut self, buffer: &Vec<char>) {
-        if self.commands.len() == 0 || self.commands.get(0).unwrap() != buffer {
-            self.commands.insert(0, buffer.clone());
+    pub fn push_and_save(&mut self, buffer: &[char]) {
+        if self.commands.is_empty() || &self.commands.get(0).unwrap()[..] != buffer {
+            self.commands.insert(0, buffer.to_vec());
             if let Some(f) = &mut self.file {
                 let mut s = buffer.iter().fold(String::new(), |mut acc, &arg| { acc.push(arg); acc });
                 s.push('\n');
-                f.write(s.as_bytes()).unwrap();
+                f.write_all(s.as_bytes()).unwrap();
             }
         }
     }
 
-    pub fn push(&mut self, buffer: &Vec<char>) {
-        if self.commands.len() == 0 || self.commands.get(0).unwrap() != buffer {
-            self.commands.insert(0, buffer.clone());
+    pub fn push(&mut self, buffer: &[char]) {
+        if self.commands.is_empty() || &self.commands.get(0).unwrap()[..] != buffer {
+            self.commands.insert(0, buffer.to_vec());
         }
     }
 
@@ -92,7 +92,7 @@ impl History {
                     file.read_to_string(&mut contents).unwrap();
                     for l in contents.lines() {
                         if !l.trim().is_empty() {
-                            history.push(&l.chars().collect());
+                            history.push(&l.chars().collect::<Vec<char>>()[..]);
                         }
                     }
                     history.file = Some(file);
