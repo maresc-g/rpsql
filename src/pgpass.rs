@@ -38,17 +38,17 @@ fn open_file_if_safe<P: AsRef<Path>>(path: P) -> Option<File> {
 }
 
 #[derive(Debug)]
-struct Entry<'a> {
-    hostname: &'a str,
-    port: &'a str,
-    database: &'a str,
-    username: &'a str,
-    password: &'a str,
+struct Entry {
+    hostname: String,
+    port: String,
+    database: String,
+    username: String,
+    password: String,
 }
 
-impl Entry<'_> {
+impl Entry {
     fn parse(s: &str) -> Option<Entry> {
-        let mut fields = s.split(':');
+        let mut fields = FieldSplit::new(s);
         let hostname = fields.next()?;
         let port = fields.next()?;
         let database = fields.next()?;
@@ -73,7 +73,7 @@ impl Entry<'_> {
 enum Line<'a> {
     Commented(&'a str),
     Empty(&'a str),
-    Parsed(Entry<'a>),
+    Parsed(Entry),
     Malformed(&'a str),
 }
 
