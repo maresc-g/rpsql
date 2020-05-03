@@ -1,4 +1,4 @@
-use termion::event::{Event, Key, MouseEvent};
+pub use termion::event::{Event, Key, MouseEvent};
 
 pub enum KeyEvent {
     Key(Key),

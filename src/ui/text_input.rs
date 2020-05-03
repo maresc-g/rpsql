@@ -1,6 +1,5 @@
 use termion::cursor::DetectCursorPos;
-use crate::ui::event::{TrueEvent, KeyEvent};
-use termion::event::Key;
+use crate::ui::event::{TrueEvent, KeyEvent, Key};
 use std::io::{Write};
 
 const PROMPT: &str = "$> ";
