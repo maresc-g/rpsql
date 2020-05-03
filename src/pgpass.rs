@@ -212,7 +212,7 @@ mod tests {
     }
 
     #[test]
-    fn entry_espaced_password() {
+    fn entry_escaped_password() {
         let path = "tests/pgpass/ok.pgpass";
         let password = parse(path, &ConnectionOptions{
             dbname: "rpsql".to_string(),
