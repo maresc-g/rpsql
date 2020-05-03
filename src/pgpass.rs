@@ -199,16 +199,29 @@ mod tests {
     }
 
     #[test]
-    fn rpsql_localhost_5432_rpsql() {
+    fn entry_easy() {
         let path = "tests/pgpass/ok.pgpass";
         let password = parse(path, &ConnectionOptions{
             dbname: "rpsql".to_string(),
             host: "localhost".to_string(),
             port: "5432".to_string(),
-            user: "rpsql".to_string(),
+            user: "easy".to_string(),
         });
 
-        assert_eq!(password, Some("defaultpass".to_string()))
+        assert_eq!(password, Some("rpsql_password".to_string()))
+    }
+
+    #[test]
+    fn entry_espaced_password() {
+        let path = "tests/pgpass/ok.pgpass";
+        let password = parse(path, &ConnectionOptions{
+            dbname: "rpsql".to_string(),
+            host: "localhost".to_string(),
+            port: "5432".to_string(),
+            user: "escaped_password".to_string(),
+        });
+
+        assert_eq!(password, Some("rpsql_password:".to_string()))
     }
 
     #[test]
