@@ -1,5 +1,6 @@
 use crate::connection_options::ConnectionOptions;
-use postgres::{Client, NoTls, SimpleQueryMessage, SimpleQueryRow, Statement};
+pub use postgres::Client;
+use postgres::{NoTls, SimpleQueryMessage, SimpleQueryRow, Statement};
 use postgres_types::Type;
 
 #[derive(Debug)]

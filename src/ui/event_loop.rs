@@ -1,4 +1,4 @@
-use std::io::{stdin};
+use std::io::{stdin, Read};
 use termion::input::TermRead;
 use crate::history::History;
 use crate::ui::event::TrueEvent;
@@ -22,6 +22,10 @@ pub fn display_vec(v: &[String]) {
 
 pub fn display_string(s: &str) {
     print!("{}\r\n", s);
+}
+
+pub fn display_error_string(s: &str) {
+    eprint!("{}\r\n", s);
 }
 
 pub fn get_input(stdout: &mut termion::raw::RawTerminal<std::io::Stdout>, history: &mut History) -> Event {
@@ -68,3 +72,12 @@ pub fn get_input(stdout: &mut termion::raw::RawTerminal<std::io::Stdout>, histor
     Event::None
 }
 
+pub fn get_direct_input() -> std::io::Result<String> {
+    let mut buffer= String::new();
+    if termion::is_tty(&std::io::stdin()) {
+        std::io::stdin().read_line(&mut buffer)?;
+    } else {
+        std::io::stdin().read_to_string(&mut buffer)?;
+    }
+    Ok(buffer)
+}
