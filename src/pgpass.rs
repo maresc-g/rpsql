@@ -55,7 +55,11 @@ impl Entry<'_> {
         let username = fields.next()?;
         let password = fields.next()?;
 
-        Some(Entry{ hostname, port, database, username, password })
+        if let Some(_) = fields.next() {
+            None
+        } else {
+            Some(Entry{ hostname, port, database, username, password })
+        }
     }
 
     fn matches(&self, hostname: &str, port: &str, database: &str, username: &str) -> bool {
@@ -108,6 +112,66 @@ fn parse_file(file: File, options: &ConnectionOptions) -> Option<String> {
     None
 }
 
+struct FieldSplit<'a> {
+    s: &'a str,
+}
+
+impl<'a> FieldSplit<'a> {
+    fn new(s: &'a str) -> FieldSplit<'a> {
+        FieldSplit{ s }
+    }
+}
+
+impl<'a> Iterator for FieldSplit<'a> {
+    type Item = String;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut field = None;
+        let mut backslash = false;
+        let mut index = 0;
+
+        for (i, c) in self.s.chars().enumerate() {
+            index = i;
+            field = field.or_else(|| {
+                Some(String::new())
+            });
+            let field = field.as_mut().unwrap();
+            match c {
+                '\\' => {
+                    if backslash {
+                        field.push(c);
+                        backslash = false;
+                    } else {
+                        backslash = true;
+                    }
+                },
+                ':' => {
+                    if backslash {
+                        field.push(c);
+                        backslash = false;
+                    } else {
+                        break;
+                    }
+                }
+                _ => {
+                    if backslash {
+                        field.push('\\');
+                        backslash = false;
+                    }
+                    field.push(c);
+                },
+            }
+        }
+        if index > 0 {
+            self.s = &self.s[index + 1..];
+        }
+        if backslash {
+            field.as_mut().unwrap().push('\\');
+        }
+        field
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -142,9 +206,40 @@ mod tests {
             host: "localhost".to_string(),
             port: "5432".to_string(),
             user: "rpsql".to_string(),
-            password: "".to_string()
         });
 
         assert_eq!(password, Some("defaultpass".to_string()))
+    }
+
+    #[test]
+    fn field_iterator_easy() {
+        let input = "one:two:three:four:five:six:seven";
+        let fields: Vec<String> = FieldSplit::new(input).collect();
+
+        assert_eq!(fields, vec!["one", "two", "three", "four", "five", "six", "seven"]);
+    }
+
+    #[test]
+    fn field_iterator_escaped_colon() {
+        let input = r"one\:two:three:four:five";
+        let fields: Vec<String> = FieldSplit::new(input).collect();
+
+        assert_eq!(fields, vec!["one:two", "three", "four", "five"]);
+    }
+
+    #[test]
+    fn field_iterator_escaped_backslash() {
+        let input = r"one:two\\:three:four:five";
+        let fields: Vec<String> = FieldSplit::new(input).collect();
+
+        assert_eq!(fields, vec!["one", r"two\", "three", "four", "five"]);
+    }
+
+    #[test]
+    fn field_iterator_escaped_mess() {
+        let input = r"\one\:two\\:three:four\\\:five\";
+        let fields: Vec<String> = FieldSplit::new(input).collect();
+
+        assert_eq!(fields, vec![r"\one:two\", "three", r"four\:five\"]);
     }
 }
