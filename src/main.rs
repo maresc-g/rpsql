@@ -12,6 +12,7 @@ use std::io::Error;
 use termion::raw::IntoRawMode;
 use history::History;
 use ui::event_loop::{self, Event};
+use dirs;
 
 fn _handle_query_result(client: &mut sql::Client, query : &str) {
     let res = sql::handle_query(client, query);
