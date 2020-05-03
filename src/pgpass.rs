@@ -208,7 +208,7 @@ mod tests {
             user: "easy".to_string(),
         });
 
-        assert_eq!(password, Some("rpsql_password".to_string()))
+        assert_eq!(password, Some("easy_password".to_string()))
     }
 
     #[test]
