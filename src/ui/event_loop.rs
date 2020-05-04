@@ -1,8 +1,9 @@
 use std::io::{stdin, Read};
 use termion::input::TermRead;
 use crate::history::History;
-use crate::ui::event::TrueEvent;
+use crate::ui::event::{TrueEvent};
 use crate::ui::text_input::{TextInput, TextInputEvent};
+use crate::ui::text_view::TextView;
 
 pub enum Event {
     Quit,
@@ -14,18 +15,35 @@ pub fn init() {
    print!("{}{}", termion::cursor::Goto(1, 1), termion::clear::All);
 }
 
+#[allow(dead_code)]
 pub fn display_vec(v: &[String]) {
     for s in v {
         display_string(s);
     }
 }
 
+#[allow(dead_code)]
 pub fn display_string(s: &str) {
     print!("{}\r\n", s);
 }
 
 pub fn display_error_string(s: &str) {
     eprint!("{}\r\n", s);
+}
+
+#[allow(dead_code)]
+pub fn display_on_alternate_screen(v: &[String]) {
+    let mut text_view = TextView::new(v);
+    text_view.display();
+    let stdin = stdin();
+
+    for e in stdin.events() {
+        let event = e.unwrap();
+        let true_event = TrueEvent::from_termion_event(event);
+        if !text_view.handle_event(true_event) {
+            break;
+        }
+    }
 }
 
 pub fn get_input(stdout: &mut termion::raw::RawTerminal<std::io::Stdout>, history: &mut History) -> Event {

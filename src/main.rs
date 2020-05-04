@@ -19,7 +19,8 @@ fn _handle_query_result(client: &mut sql::Client, query : &str) {
     if let Err(e) = res {
         event_loop::display_error_string(&e);
     } else {
-        event_loop::display_vec(&res.unwrap()[..]);
+        // event_loop::display_vec(&res.unwrap()[..]);
+        event_loop::display_on_alternate_screen(&res.unwrap()[..]);
     }
 }
 
